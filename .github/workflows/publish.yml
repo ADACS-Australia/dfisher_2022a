@@ -37,8 +37,8 @@ jobs:
         poetry publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_RTD_TOKEN }}
 
     - name: Trigger RTDs build
-        uses: ./
-        with:
-          webhook_url: ${{ secrets.RTDS_WEBHOOK_URL_DFISHER_2022A }}
-          webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
-          commit_ref: ${{ github.ref }}
+      uses: actions/checkout@v2
+      with:
+        webhook_url: ${{ secrets.RTDS_WEBHOOK_URL_DFISHER_2022A }}
+        webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
+        commit_ref: ${{ github.ref }}
