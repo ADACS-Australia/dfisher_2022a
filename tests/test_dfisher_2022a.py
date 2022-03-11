@@ -1,4 +1,4 @@
-from lorikeet import __version__
+from dfisher_2022a import __version__
 
 
 def test_version():
