@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "lorikeet"
+name = "dfisher_2022a"
 version = "0.1.0"
 description = "Spectral analysis code created for the delivery of the DFisher_2022A ADACS MAP project."
 authors = ["Gregory Poole <gbpoole@gmail.com>"]
