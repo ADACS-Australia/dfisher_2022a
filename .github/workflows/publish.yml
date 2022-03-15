@@ -38,7 +38,7 @@ jobs:
         poetry publish
 
     - name: Trigger RTDs build
-      uses: actions/checkout@v2
+      uses: ./
       with:
         webhook_url: ${{ secrets.RTDS_WEBHOOK_URL_DFISHER_2022A }}
         webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
