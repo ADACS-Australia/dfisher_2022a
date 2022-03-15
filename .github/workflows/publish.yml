@@ -34,7 +34,8 @@ jobs:
 
     - name: Publish to PyPI
       run: |
-        poetry publish --username ${{ secrets.PYPI_USERNAME }} --password ${{ secrets.PYPI_RTD_TOKEN }}
+        poetry config pypi-token.pypi ${{ secrets.PYPI_RTD_TOKEN }}
+        poetry publish
 
     - name: Trigger RTDs build
       uses: actions/checkout@v2
