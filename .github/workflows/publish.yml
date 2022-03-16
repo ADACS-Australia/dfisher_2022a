@@ -5,8 +5,7 @@ on:
     types: [created]
 
 jobs:
-  deploy:
-
+  initialise:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,8 +19,20 @@ jobs:
     - name: Install basic dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
-        pip install poetry
+        python -m pip install pytest
+        python -m pip install poetry
+
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: initialise
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Generate build
+      run: |
+        poetry version $(git describe --tags --abbrev=0)
+        poetry build
 
     - name: Code tests
       run: |
@@ -29,18 +40,27 @@ jobs:
 
     - name: Documentation build test
       run: |
-        pip install --upgrade --upgrade-strategy eager --no-cache-dir .
+        poetry install --extras docs
         make html
 
-    - name: Generate build
-      run: |
-        poetry version $(git describe --tags --abbrev=0)
-        poetry build
+  publish-code:
+    runs-on: ubuntu-latest
+    needs: run-tests
+
+    steps:
+    - uses: actions/checkout@v2
 
     - name: Publish to PyPI
       run: |
         poetry config pypi-token.pypi ${{ secrets.PYPI_RTD_TOKEN }}
         poetry publish
+
+  publish-docs:
+    runs-on: ubuntu-latest
+    needs: publish-code
+
+    steps:
+    - uses: actions/checkout@v2
 
     - name: Trigger RTDs build
       run: |
