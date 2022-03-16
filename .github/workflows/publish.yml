@@ -17,15 +17,20 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Install dependencies
+    - name: Install basic dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pytest
         pip install poetry
 
-    - name: Run tests
+    - name: Code tests
       run: |
         pytest
+
+    - name: Documentation build test
+      run: |
+        pip install --upgrade --upgrade-strategy eager --no-cache-dir .
+        make html
 
     - name: Generate build
       run: |
@@ -38,8 +43,7 @@ jobs:
         poetry publish
 
     - name: Trigger RTDs build
-      uses: ./
-      with:
-        webhook_url: ${{ secrets.RTDS_WEBHOOK_URL_DFISHER_2022A }}
-        webhook_token: ${{ secrets.RTDS_WEBHOOK_TOKEN }}
-        commit_ref: ${{ github.ref }}
+      run: |
+        curl -X POST                                                    \
+             -H "Authorization: Token ${{ secrets.RTD_WEBHOOK_TOKEN }}" \
+             ${{ secrets.RTD_WEBHOOK_URL_DFISHER_2022A }}
