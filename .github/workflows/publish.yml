@@ -10,7 +10,7 @@ jobs:
 
     steps:
 
-    - name: Check-out repository
+    # Check-out Repo
     - uses: actions/checkout@v2
 
     - name: Set up Python
