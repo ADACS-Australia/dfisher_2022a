@@ -42,6 +42,10 @@ jobs:
         poetry install --no-interaction --no-root
         poetry install --no-interaction --no-root --extras docs
 
+    - name: Activate environment
+      run: |
+        source .venv/bin/activate
+
     - name: Code tests
       run: |
         pytest tests/
