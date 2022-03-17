@@ -42,11 +42,6 @@ jobs:
         poetry install --no-interaction --no-root
         poetry install --no-interaction --no-root --extras docs
 
-    - name: Code tests
-      run: |
-        source .venv/bin/activate
-        pytest tests/
-
     - name: Generate build
       run: |
         poetry version $(git describe --tags --abbrev=0)
@@ -55,6 +50,11 @@ jobs:
     - name: Install library
       run: |
         poetry install --no-interaction
+
+    - name: Code tests
+      run: |
+        source .venv/bin/activate
+        pytest tests/
 
     - name: Documentation build test
       run: |
