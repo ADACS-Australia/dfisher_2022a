@@ -5,7 +5,7 @@ on:
     types: [created]
 
 jobs:
-  initialise:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,13 +22,6 @@ jobs:
         python -m pip install pytest
         python -m pip install poetry
 
-  run-tests:
-    runs-on: ubuntu-latest
-    needs: initialise
-
-    steps:
-    - uses: actions/checkout@v2
-
     - name: Generate build
       run: |
         poetry version $(git describe --tags --abbrev=0)
@@ -43,27 +36,13 @@ jobs:
         poetry install --extras docs
         make html
 
-  publish-code:
-    runs-on: ubuntu-latest
-    needs: run-tests
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Publish to PyPI
-      run: |
-        poetry config pypi-token.pypi ${{ secrets.PYPI_RTD_TOKEN }}
-        poetry publish
-
-  publish-docs:
-    runs-on: ubuntu-latest
-    needs: publish-code
-
-    steps:
-    - uses: actions/checkout@v2
-
     - name: Trigger RTDs build
       run: |
         curl -X POST                                                    \
              -H "Authorization: Token ${{ secrets.RTD_WEBHOOK_TOKEN }}" \
              ${{ secrets.RTD_WEBHOOK_URL_DFISHER_2022A }}
+
+    - name: Publish to PyPI
+      run: |
+        poetry config pypi-token.pypi ${{ secrets.PYPI_RTD_TOKEN }}
+        poetry publish
