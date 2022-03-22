@@ -3,13 +3,22 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the DFisher_2022A documentation!
-===========================================
+DFisher_2022A Project Documentation
+===================================
+
+.. include:: introduction.md
+   :parser: myst_parser.sphinx_
+
+.. include:: notes_for_developers.md
+   :parser: myst_parser.sphinx_
+
+
+Codebase Documentation
+======================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
-
 
 
 Indices and tables
