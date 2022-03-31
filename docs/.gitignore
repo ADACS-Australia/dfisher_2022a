@@ -1,3 +1,4 @@
 Makefile
 make.bat
+conf.py
 *.rst

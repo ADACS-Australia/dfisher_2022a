@@ -1,3 +1,3 @@
 """
-    Package docs text.  This thing does dskjskjdfkja.
+    Project documentation goes here.
 """
