@@ -1,9 +1,12 @@
 [tool.poetry]
 name = "dfisher_2022a"
-version = "0.1.0"
+version = "0.0.0-dev"
 description = "Spectral analysis code created for the delivery of the DFisher_2022A ADACS MAP project."
 authors = ["Gregory Poole <gbpoole@gmail.com>"]
 license = "MIT-expat"
+packages = [
+    { include = "dfisher_2022a", from = "src" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.8"
