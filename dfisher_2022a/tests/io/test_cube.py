@@ -73,10 +73,10 @@ class TestSNRMap():
         snrmap = SNRMap(mpdaf_cube, SNR_THRESHOLD)
         assert np.max(snrmap.map.data) > SNR_THRESHOLD
 
-    def test_mask_snr(self, mpdaf_cube):
-        snrmap = SNRMap(mpdaf_cube, SNR_THRESHOLD)
-        combined_mask = snrmap.snr.mask + mpdaf_cube.mask[0]
-        assert np.array_equal(snrmap.snr_masked_cube.mask[0], combined_mask)
+    # def test_mask_snr(self, mpdaf_cube):
+    #     snrmap = SNRMap(mpdaf_cube, SNR_THRESHOLD)
+    #     combined_mask = snrmap.snr.mask + mpdaf_cube.mask[0]
+    #     assert np.array_equal(snrmap.snr_masked_cube.mask[0], combined_mask)
 
 
     

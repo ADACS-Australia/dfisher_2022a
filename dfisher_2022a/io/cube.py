@@ -12,7 +12,9 @@ class RestCube():
     def _de_redshift(self, cube):
         obs_wav = cube.wave.get_crval()
         res_wav = obs_wav / (1 + self.z)
+        # print("some waves: ", obs_wav, res_wav)
         self._restwave = res_wav
+        # rcube = cube.clone()
         cube.wave.set_crval(res_wav)
         self.restcube = cube
 
@@ -35,6 +37,7 @@ class FitReadyCube():
 
     def _get_fitreadycube(self, restcube):
         subcube = restcube.restcube[self.low_index:self.high_index+1,:,:]
+        print("shape")
         if self.snr_threshold:
             subcube = SNRMap(subcube, self.snr_threshold).snr_masked_cube
 
@@ -71,6 +74,10 @@ class SNRMap():
         #TODO: raise error when cube_sum.var is zero
     
     def _mask_snr(self, cube):
-        for i in range(cube.shape[0]):
-            cube.mask[i,:,:] = cube.mask[i,:,:] + self.snr.mask
+        for i in range(cube.shape[1]):
+            for j in range(cube.shape[2]):
+                pixel_snr = self.snr.mask[i,j]
+                if pixel_snr == 1:
+                    cube.mask[:,i,j] = 1
+                # cube.mask[i,:,:] = cube.mask[i,:,:] + self.snr.mask
         self.snr_masked_cube = cube
