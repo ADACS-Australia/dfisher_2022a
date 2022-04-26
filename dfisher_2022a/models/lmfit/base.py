@@ -1,4 +1,37 @@
 # base models
+from ..base import gaussianH, guess_from_peak, guess_1gauss
+import numpy as np
+import lmfit
+
+def _guess_1gauss(self, data, x, **kwargs):
+    """Estimate initial model parameter values from data.
+
+    The data for gaussian g1 will be guessed by 1 gaussian plus constant.
+
+    a and b model parameters are initialized by any model parameter hint and not
+    affected by the guess function.
+
+    Parameters
+    ----------
+    data : array_like
+        Array of data (i.e., y-values) to use to guess parameter values.
+    x : array_like
+        Array of values for the independent variable (i.e., x-values).
+    **kws : optional
+        Additional keyword arguments, passed to model function.
+
+    Returns
+    -------
+    params : :class:`~lmfit.parameter.Parameters`
+        Initial, guessed values for the parameters of a Model.
+    """
+    g1_height, g1_center, g1_sigma, constant = guess_1gauss(data, x)
+   
+    pars = self.make_params(
+        g1_height=g1_height, g1_center=g1_center, g1_sigma=g1_sigma, c=constant,
+    )
+
+    return lmfit.models.update_param_vals(pars, self.prefix, **kwargs)
 
 class GaussianModelH(lmfit.Model):
     r"""A model heavily based on lmfit's :class:`~lmfit.models.GaussianModel`, fitting height instead of amplitude.

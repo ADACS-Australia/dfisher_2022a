@@ -91,33 +91,9 @@ def mean_edges(y, x=None, edge_fraction=0.1):
     return y_edges.mean()
 
 # TODO: make it more generic, not limited to lmfit
-def _guess_1gauss(self, data, x, **kwargs):
-    """Estimate initial model parameter values from data.
-
-    The data for gaussian g1 will be guessed by 1 gaussian plus constant.
-
-    a and b model parameters are initialized by any model parameter hint and not
-    affected by the guess function.
-
-    Parameters
-    ----------
-    data : array_like
-        Array of data (i.e., y-values) to use to guess parameter values.
-    x : array_like
-        Array of values for the independent variable (i.e., x-values).
-    **kws : optional
-        Additional keyword arguments, passed to model function.
-
-    Returns
-    -------
-    params : :class:`~lmfit.parameter.Parameters`
-        Initial, guessed values for the parameters of a Model.
-    """
-    g1_height, g1_center, g1_sigma = guess_from_peak(data, x)
-    constant = mean_edges(data, edge_fraction=0.1)
-
-    pars = self.make_params(
-        g1_height=g1_height, g1_center=g1_center, g1_sigma=g1_sigma, c=constant,
-    )
-
-    return lmfit.models.update_param_vals(pars, self.prefix, **kwargs)
+def guess_1gauss(y, x):
+    g1_height, g1_center, g1_sigma = guess_from_peak(y, x)
+    constant = mean_edges(y, edge_fraction=0.1)  # 2022-03-26 JH: estimation continuum
+    
+    return g1_height, g1_center, g1_sigma, constant
+   
