@@ -1,4 +1,6 @@
 # __version__ = '0.1.0'
 
-from . import io 
+from .io import cube, line
+from . import fits
+from . import models
 from . import emission_lines 
