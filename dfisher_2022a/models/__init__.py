@@ -1,0 +1,1 @@
+from .lmfit import Const_1GaussModel as Lm_Const_1GaussModel

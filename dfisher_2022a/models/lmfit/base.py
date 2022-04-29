@@ -3,6 +3,11 @@ from ..base import gaussianH, guess_from_peak, guess_1gauss
 import numpy as np
 import lmfit
 
+def flux_expr(model):
+    """Return constraint expression for line flux."""
+    fmt = "{factor:.7f}*{prefix:s}height*{prefix:s}sigma"
+    return fmt.format(factor=model.flux_factor, prefix=model.prefix)
+    
 def _guess_1gauss(self, data, x, **kwargs):
     """Estimate initial model parameter values from data.
 
