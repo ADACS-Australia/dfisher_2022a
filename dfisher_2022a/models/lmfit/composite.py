@@ -1,9 +1,9 @@
 # composite models
 import lmfit
 import operator
-from .base import GaussianModelH, _guess_1gauss
+from .base import ConstantModelH, GaussianModelH, CompositeModel, _guess_1gauss
 
-class Const_1GaussModel(lmfit.model.CompositeModel):
+class Const_1GaussModel(CompositeModel):
     """Constant + 1 Gaussian Model.
 
     Essentially created by:
@@ -27,7 +27,7 @@ class Const_1GaussModel(lmfit.model.CompositeModel):
             )
 
         g1 = GaussianModelH(prefix="g1_", **kwargs)
-        c = lmfit.models.ConstantModel(prefix="", **kwargs)
+        c = ConstantModelH(prefix="", **kwargs)
 
         # the below lines gives g1 + c
         super().__init__(g1, c, operator.add)

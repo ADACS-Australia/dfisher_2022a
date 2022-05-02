@@ -1,5 +1,5 @@
 # base models
-from ..base import gaussianH, guess_from_peak, guess_1gauss
+from ..base import constantH, gaussianH, guess_from_peak, guess_1gauss
 import numpy as np
 import lmfit
 
@@ -7,7 +7,7 @@ def flux_expr(model):
     """Return constraint expression for line flux."""
     fmt = "{factor:.7f}*{prefix:s}height*{prefix:s}sigma"
     return fmt.format(factor=model.flux_factor, prefix=model.prefix)
-    
+
 def _guess_1gauss(self, data, x, **kwargs):
     """Estimate initial model parameter values from data.
 
@@ -37,6 +37,33 @@ def _guess_1gauss(self, data, x, **kwargs):
     )
 
     return lmfit.models.update_param_vals(pars, self.prefix, **kwargs)
+
+class ConstantModelH(lmfit.Model):
+    """Constant model, with a single Parameter: `c`.
+    Note that this is 'constant' in the sense of having no dependence on
+    the independent variable `x`, not in the sense of being non-varying.
+    To be clear, `c` will be a Parameter that will be varied in the fit
+    (by default, of course).
+    """
+
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy='raise',
+                 **kwargs):
+        kwargs.update({'prefix': prefix, 'nan_policy': nan_policy,
+                       'independent_vars': independent_vars})
+
+        super().__init__(constantH, **kwargs)
+
+    def guess(self, data, x=None, **kwargs):
+        """Estimate initial model parameter values from data."""
+        pars = self.make_params()
+
+        pars[f'{self.prefix}c'].set(value=data.mean())
+        return lmfit.models.update_param_vals(pars, self.prefix, **kwargs)
+
+    __init__.__doc__ = lmfit.models.COMMON_INIT_DOC
+    guess.__doc__ = lmfit.models.COMMON_GUESS_DOC
+
+
 
 class GaussianModelH(lmfit.Model):
     r"""A model heavily based on lmfit's :class:`~lmfit.models.GaussianModel`, fitting height instead of amplitude.
@@ -114,3 +141,58 @@ class GaussianModelH(lmfit.Model):
         return lmfit.models.update_param_vals(pars, self.prefix, **kwargs)
 
     __init__.__doc__ = lmfit.models.COMMON_INIT_DOC
+
+def _tmp():
+    pass
+
+class CompositeModel(lmfit.model.CompositeModel):
+    def __init__(self, left, right, op, **kws):
+        """
+        Parameters
+        ----------
+        left : Model
+            Left-hand model.
+        right : Model
+            Right-hand model.
+        op : callable binary operator
+            Operator to combine `left` and `right` models.
+        **kws : optional
+            Additional keywords are passed to `Model` when creating this
+            new model.
+        Notes
+        -----
+        The two models must use the same independent variable.
+        """
+        if not isinstance(left, lmfit.Model):
+            raise ValueError(f'CompositeModel: argument {left} is not a Model')
+        if not isinstance(right, lmfit.Model):
+            raise ValueError(f'CompositeModel: argument {right} is not a Model')
+        if not callable(op):
+            raise ValueError(f'CompositeModel: operator {op} is not callable')
+
+        self.left = left
+        self.right = right
+        self.op = op
+
+        name_collisions = set(left.param_names) & set(right.param_names)
+        if len(name_collisions) > 0:
+            msg = ''
+            for collision in name_collisions:
+                msg += (f"\nTwo models have parameters named '{collision}'; "
+                        "use distinct names.")
+            raise NameError(msg)
+
+        # we assume that all the sub-models have the same independent vars
+        if 'independent_vars' not in kws:
+            kws['independent_vars'] = self.left.independent_vars
+        if 'nan_policy' not in kws:
+            kws['nan_policy'] = self.left.nan_policy
+
+        # def _tmp(self, *args, **kws):
+        #     pass
+        lmfit.Model.__init__(self, _tmp, **kws)
+
+        for side in (left, right):
+            prefix = side.prefix
+            for basename, hint in side.param_hints.items():
+                self.param_hints[f"{prefix}{basename}"] = hint

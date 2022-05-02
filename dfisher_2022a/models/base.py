@@ -3,6 +3,9 @@ import numpy as np
 
 tiny = 1.e-15
 
+def constantH(x,c=0.0):
+    return c
+
 def gaussianH(x, height=1.0, center=0.0, sigma=1.0):
     """Return a 1-dimensional Gaussian function.
 
