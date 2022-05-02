@@ -6,7 +6,7 @@
 # http://www.pa.uky.edu/~peter/atomic/index.html
 
 # Wavelength in Angstroms.
-OIII5007    = 5006.843  #: = 5006.843 # [O III] 5007
+
 OIII4959    = 4958.911  #: = 4958.911 # [O III] 4959
 OIII4363    = 4363.210  #: = 4363.210 # [O III] 4363
 
@@ -16,5 +16,6 @@ OII3729     = 3728.815  #: = 3728.815 # [O II] 3727 doublet, line 2
 Hb4861      = 4861.333  #: = 4861.333 # Hβ
 Hgamma      = 4340.471  #: = 4340.471 # Hγ
 Hdelta      = 4101.742  #: = 4101.742 # Hδ
+Halpha      = 6562.819 	#: = 6562.819 # Hα
 
 NeIII       = 3868.760  #: = 3868.760 # [Ne III] 3869
