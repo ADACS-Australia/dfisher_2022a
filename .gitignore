@@ -51,3 +51,5 @@ _build
 #Miscillaneous
 .install*
 *.old
+_data
+
