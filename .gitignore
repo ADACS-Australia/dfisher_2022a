@@ -52,4 +52,5 @@ _build
 .install*
 *.old
 _data
+.ipynb_checkpoints
 

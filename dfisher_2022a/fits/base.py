@@ -30,40 +30,35 @@ class FitCube():
             sp_weight = self.weights[:,i,j]
         else:
             sp_weight = None
-        m = self.model()
-        params = m.guess(spaxel, self.x)
 
-        result = m.fit(spaxel, params, x=self.x, weights=sp_weight)
-        name = os.getpid()
-        print("subprocess: ", name, " pixel: ", i, j)
+        if spaxel.mask.all():
+            print("masked all data: ", i, j)
+            result = None
 
-        # type: lmfit ModelResult 
+        else:
+            m = self.model()
+            params = m.guess(spaxel, self.x)
+
+            result = m.fit(spaxel, params, x=self.x, weights=sp_weight)
+            name = os.getpid()
+            print("subprocess: ", name, " pixel: ", i, j)
+
+            # type: lmfit ModelResult 
+            
         return result
 
     def _create_results_placeholder(self):
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
-        res = np.zeros((axis_x, axis_y))
-        df = pd.DataFrame(res)
+        res = np.zeros((axis_x*axis_y, 3), dtype=np.int32)
+        df = pd.DataFrame(res, columns = ["row", "col", "Result"])
+        
+        for i in range(axis_x):
+            df["row"][i*axis_y:(i+1)*axis_y] = i
+            df["col"][i*axis_y:(i+1)*axis_y] = list(range(axis_y))
+        
+        # df = df.astype({"row":np.int32, "col":np.int32})
         self.res = df
-
-    # def _fit_single_index(self,i):
-    #     axis_0 = self.data.shape[0]
-    #     axis_x = self.data.shape[1]
-    #     axis_y = self.data.shape[2]
-    #     flat_data = self.data.reshape(axis_0, axis_x*axis_y)
-    #     if self.weights is not None:
-    #         flat_weights = self.weights.reshape(axis_0, axis_x*axis_y)
-    #         single_weight = flat_weights[:,i]
-    #     else:
-    #         single_weight = None
-    #     single = flat_data[:,i]
-
-    #     m = self.model()
-    #     params = m.guess(single, self.x)
-
-    #     result = m.fit(single, params, x=self.x, weights=single_weight)
-
 
     def fit_all(self, nprocess):
         axis_x = self.data.shape[1]
@@ -71,11 +66,11 @@ class FitCube():
         with ProcessPoolExecutor(max_workers=nprocess) as pool:
             for i in range(axis_x):
                 for j in range(axis_y):
-                    name = os.getpid()
+                    idx = i*axis_y + j
                     future = pool.submit(self.fit_single_spaxel, i, j)
-                    self.res[i][j] = future.result()
+                    self.res["Result"][idx] = future.result()
                    
-
+        #TODO: fit selected region
             
 
         # p = Pool(processes=nprocess)
