@@ -63,12 +63,15 @@ class FitCube():
     def fit_all(self, nprocess):
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
+        res_collect = []
         with ProcessPoolExecutor(max_workers=nprocess) as pool:
             for i in range(axis_x):
                 for j in range(axis_y):
                     idx = i*axis_y + j
                     future = pool.submit(self.fit_single_spaxel, i, j)
                     self.res["Result"][idx] = future.result()
+                    # res_collect.append(future)
+        # return res_collect
                    
         #TODO: fit selected region
             
