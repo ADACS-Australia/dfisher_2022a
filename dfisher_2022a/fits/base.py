@@ -69,9 +69,9 @@ class FitCube():
                 for j in range(axis_y):
                     idx = i*axis_y + j
                     future = pool.submit(self.fit_single_spaxel, i, j)
-                    self.res["Result"][idx] = future.result()
-                    # res_collect.append(future)
-        # return res_collect
+                    # self.res["Result"][idx] = future.result()
+                    res_collect.append(future)
+        return res_collect
                    
         #TODO: fit selected region
             
