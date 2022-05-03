@@ -1,9 +1,10 @@
 # process cube
 import numpy as np
 import numpy.ma as ma
+# from mpdaf.obj import Cube
 
 class RestCube():
-    def __init__(self, cube, z):
+    def __init__(self, cube, z=0.0):
         self.z = z
         self.restcube = None
         self._restwave = None
@@ -37,7 +38,7 @@ class FitReadyCube():
 
     def _get_fitreadycube(self, restcube):
         subcube = restcube.restcube[self.low_index:self.high_index+1,:,:]
-        print("shape")
+
         if self.snr_threshold:
             subcube = SNRMap(subcube, self.snr_threshold).snr_masked_cube
 
@@ -52,23 +53,24 @@ class FitReadyCube():
     # TODO: raise error if the fitting region is not included in the data range
 
 class SNRMap():
-    def __init__(self, cube, threshold=None) -> None:
+    def __init__(self, cube, threshold=None):
         self.threshold = threshold
         self.snr = None
         self.map = None
-        self._get_snrmap(cube)
+        self._get_snrmap(cube) 
         if self.threshold:
             self._mask_snr(cube)
 
     def _get_snrmap(self, cube):
         cube_sum = cube.sum(axis=0)
         snr = cube_sum.data/np.sqrt(cube_sum.var)
-        self.snr = snr
-        cube_sum.data = snr
-       
+
         if self.threshold:
-            cube_sum = (cube_sum > self.threshold)
-           
+            # masked out entries with S/N smaller than the threshold
+            snr = ma.masked_where(snr < self.threshold, snr)
+
+        self.snr = snr
+        cube_sum.data = snr 
         self.map = cube_sum
         
         #TODO: raise error when cube_sum.var is zero
@@ -78,6 +80,6 @@ class SNRMap():
             for j in range(cube.shape[2]):
                 pixel_snr = self.snr.mask[i,j]
                 if pixel_snr == 1:
-                    cube.mask[:,i,j] = 1
-                # cube.mask[i,:,:] = cube.mask[i,:,:] + self.snr.mask
+                    cube.data[:,i,j] = ma.masked
+                    # print("masked pixel: ", i, j)
         self.snr_masked_cube = cube
