@@ -4,10 +4,13 @@ import pandas as pd
 import os
 from multiprocessing import Pool
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+import itertools
 import threading
+from pandarallel import pandarallel
 from functools import partial
 from ..io.cube import FitReadyCube
 from ..models import Lm_Const_1GaussModel
+pandarallel.initialize()
 
 class FitCube():
     def __init__(self, cube, model):
@@ -17,6 +20,7 @@ class FitCube():
         self._get_weight()
         self.model = model
         self._create_results_placeholder()
+        self.name = None
 
     def _get_weight(self):
         if self.var is not None:
@@ -80,10 +84,12 @@ class FitCube():
         
         self.res = df
 
-    def _fit_all(self, nprocess):
+    def _fit_all(self, nprocess, batch_size=10):
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
+        
         res_collect = []
+        
         with ProcessPoolExecutor(max_workers=nprocess) as pool:
             for i in range(axis_x):
                 for j in range(axis_y):
@@ -106,19 +112,37 @@ class FitCube():
         idx = future_result[0]
         self.res["Result"][idx] = future_result[1]
 
-
     def _map_all(self, res_collect, nthread):
         with ThreadPoolExecutor(max_workers=nthread) as pool:
             for ele in res_collect:
                 pool.submit(self._map_result, ele)
-                
-
-     
+                    
     def fit_all(self, nprocess, nthread):
         res_collect = self._fit_all(nprocess = nprocess)
         self._map_all(res_collect, nthread=nthread)
 
+    def _extract_info(self, name):
+        self.name = name
+        self.res[name] = self.res["Result"].parallel_apply(self._extract_info_single)
 
+    def _extract_info_single(self, res):
+        fres = FitResult()
+        names = fres.get_info(res)
+        self.names = names
+        if self.name is not None:
+            info = getattr(fres, self.name)
+            return info
+
+    def extract_info(self):
+        sample_res = self.res["Result"][0]
+        self._extract_info_single(sample_res)
+        for name in self.names:
+            self._extract_info(name)
+
+    def write_txt(self, filename):
+        df = self.res.drop(axis=1, columns="Result")
+        out = Output(df)
+        out.to_csv(filename)
 
 
 
@@ -127,14 +151,53 @@ class FitCube():
 
 
 class FitResult():
-    def __init__(self, fitresult):
-        self.results = fitresult
-
-    def _get_parameter(self):
+    # read in lmfit ModelResult
+    def __init__(self):
         pass
+        # self.result = fitresult
+        # self.dict = {}
 
-    def to_csv():
-        pass
+
+    def _get_parameter_names(self, fitresult):
+        var_name = fitresult.var_names
+        return var_name
+
+    def _get_parameter_values(self, fitresult, var_name):
+        param = fitresult.params.get(var_name)
+        value = param.value
+        err_name = var_name + "_err"
+        stderr = param.stderr
+        setattr(self, var_name, value)
+        setattr(self, err_name, stderr)
+        # self.dict[var_name] = value
+        # self.dict[err_name] = stderr
+        # return value, stderr
+
+    def _get_parameters(self, fitresult):
+        names = self._get_parameter_names(fitresult)
+        for name in names:
+            self._get_parameter_values(fitresult, name)
+
+    def _get_stats(self, fitresult):
+        setattr(self, "success",fitresult.success)
+        setattr(self, "chisqr",fitresult.chisqr)
+        setattr(self, "redchi",fitresult.redchi)
+
+    def get_info(self, fitresult):
+        self._get_parameters(fitresult)
+        self._get_stats(fitresult)
+        names = []
+        for key in self.__dict__.keys():
+            names.append(key)
+        return names
+
+    
+class Output():
+    def __init__(self, dataframe) -> None:
+        self.df = dataframe
+
+    def to_csv(self, filename):
+        self.df.to_csv(filename, index=False, sep="\t", float_format="%.5f")
 
     def to_hdf5():
         pass
