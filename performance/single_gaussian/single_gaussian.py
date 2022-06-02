@@ -13,8 +13,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import dfisher_2022a as dfi
 
 time_start = time.time()
-path = "/Users/SuperTiger/ADACS/repo/SS2022A-DFisher/dfisher_2022a/dfisher_2022a/tests/data"
-
+path = "../dfisher_2022a/tests/data"
 file = path + "/" + "single_gaussian_muse_size.fits"
 
 cube = Cube(file)
