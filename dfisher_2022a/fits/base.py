@@ -2,15 +2,22 @@
 import numpy as np
 import pandas as pd
 import os
-from multiprocessing import Pool
+import time
+from viztracer import VizTracer
+import multiprocessing as mp
+from multiprocessing import RawArray, sharedctypes
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import itertools
 import threading
-from pandarallel import pandarallel
+# from pandarallel import pandarallel
 from functools import partial
 from ..io.cube import FitReadyCube
 from ..models import Lm_Const_1GaussModel
-pandarallel.initialize()
+# pandarallel.initialize()
+
+# to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
+ctx = mp.get_context('fork')
+        
 
 class FitCube():
     def __init__(self, cube, model):
@@ -72,38 +79,146 @@ class FitCube():
                 
             return result
 
+    #TODO: 1. try to share the final results only 
+    #TODO: 2. share input data too
+    #TODO: 3. writeout all the necessary information
+
     def _create_results_placeholder(self):
+        axis_spec = self.data.shape[0]
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
-        res = np.zeros((axis_x*axis_y, 3), dtype=np.int32)
-        df = pd.DataFrame(res, columns = ["row", "col", "Result"])
+        pix = axis_x*axis_y
+        res = np.zeros((pix,1))
+        res[:] = np.nan
+        self.res = res
+
+    
+    def _fit_single_index(self, i):
+        start = time.time()
+        records = np.ctypeslib.as_array(shared_records_c)
         
-        for i in range(axis_x):
-            df["row"][i*axis_y:(i+1)*axis_y] = i
-            df["col"][i*axis_y:(i+1)*axis_y] = list(range(axis_y))
+        # shared memory
+        res = np.ctypeslib.as_array(shared_res_c)
+        rdata = np.ctypeslib.as_array(shared_data)
+
+
+        # axis_spec = self.data.shape[0]
+        # axis_x = self.data.shape[1]
+        # axis_y = self.data.shape[2]
+        # pix = axis_x*axis_y
+        # rdata = self.data.reshape(axis_spec, pix)
+        sp = rdata[:,i]
+
+        if self.weights is not None:
+            rweights = np.ctypeslib.as_array(shared_weights)
+            # rweights = self.weights.reshape(axis_spec, pix)
+            sp_weight = rweights[:,i]
+        else:
+            sp_weight = None
         
-        self.res = df
+        # if sp.mask.all():
+        #     result = (i, None)
+
+        # else:                
+        m = self.model()
+        params = m.guess(sp, self.x)
+
+        result = m.fit(sp, params, x=self.x, weights=sp_weight)
+        g = result.params.get('g1_height')
+        res[i,0] = g
+        end = time.time()
+        records[i] = end -start
+        name = os.getpid()
+        print("subprocess: ", name, " pixel: ", i)
+        
+
+            # type: lmfit ModelResult 
+            
+        # return result
+        
+
+
+    def fit_all(self, nprocess, chunksize=10):
+        axis_spec = self.data.shape[0]
+        axis_x = self.data.shape[1]
+        axis_y = self.data.shape[2]
+        pix = axis_x*axis_y
+        rdata = self.data.reshape(axis_spec, pix)
+        rdatac = np.ctypeslib.as_ctypes(rdata)
+        global shared_data
+        shared_data = sharedctypes.RawArray(rdatac._type_, rdatac)
+
+        if self.weights is not None:
+            rweights = self.weights.reshape(axis_spec, pix)
+            rweightsc = np.ctypeslib.as_ctypes(rweights)
+            global shared_weights
+            shared_weights = sharedctypes.RawArray(rweightsc._type_, rweightsc)
+
+        resc = np.ctypeslib.as_ctypes(self.res)
+        global shared_res_c
+        shared_res_c = mp.sharedctypes.RawArray(resc._type_, resc)
+
+        # just for timing purpose
+        records = np.zeros(pix)
+        records[:] = np.nan
+        recordsc = np.ctypeslib.as_ctypes(records)
+        global shared_records_c
+        shared_records_c = sharedctypes.RawArray(recordsc._type_, recordsc)
+
+        # ctx = get_context('fork')
+        p = ctx.Pool(processes=nprocess)
+        print("start pooling")
+        p.map(self._fit_single_index, list(range(pix)), chunksize=chunksize)
+        print("finish pooling")
+
+        res = np.ctypeslib.as_array(shared_res_c)
+        self.res = res
+
+        records = np.ctypeslib.as_array(shared_records_c)
+        self.records = records
+    # def _reshape_data(self):
+    #     axis_spec = self.data.shape[0]
+    #     axis_x = self.data.shape[1]
+    #     axis_y = self.data.shape[2]
+    #     pix = axis_x*axis_y
+    #     rdata = self.data.reshape(axis_spec, pix)
+    #     if self.weights is not None:
+    #         rweights = self.weights.reshape(axis_spec, pix)
 
     def _fit_all(self, nprocess, batch_size=10):
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
         
-        res_collect = []
+        
         
         with ProcessPoolExecutor(max_workers=nprocess) as pool:
             for i in range(axis_x):
+                res_collect = []
                 for j in range(axis_y):
+                    # idx = i*axis_y + j
                     future = pool.submit(self.fit_single_spaxel, i, j, enable_res=True)
                     # self.res["Result"][idx] = future.result()
                     res_collect.append(future)
+                self.map_all(res_collect)
+                print("mapping for row: ", i)
         
         #TODO: fit selected region
 
-        # p = Pool(processes=nprocess)
-        # axis_x = self.data.shape[1]
-        # axis_y = self.data.shape[2]
+
+    def fit_map_all(self, nprocess, batch=100):
+        p = Pool(processes=nprocess)
+        axis_x = self.data.shape[1]
+        axis_y = self.data.shape[2]
+        sample_size = axis_x*axis_y
+        res = []
+        for result in p.map(self._fit_single_index, [batch for _ in range(sample_size//batch)]):
+            res.append(result)
+
+
+            
         # p.map(self._fit_single_index, list(range(axis_x*axis_y)))
-        return res_collect
+        
+        
                    
     def _map_result(self, res_ele):
         name = threading.current_thread().getName()
@@ -116,10 +231,16 @@ class FitCube():
         with ThreadPoolExecutor(max_workers=nthread) as pool:
             for ele in res_collect:
                 pool.submit(self._map_result, ele)
+
+    def map_all(self, res_collect):
+        for ele in res_collect:
+            future_result = ele.result()
+            idx = future_result[0]
+            self.res["Result"][idx] = future_result[1]
                     
-    def fit_all(self, nprocess, nthread):
-        res_collect = self._fit_all(nprocess = nprocess)
-        self._map_all(res_collect, nthread=nthread)
+    # def fit_all(self, nprocess, nthread):
+    #     res_collect = self._fit_all(nprocess = nprocess)
+    #     self._map_all(res_collect, nthread=nthread)
 
     def _extract_info(self, name):
         self.name = name
