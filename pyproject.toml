@@ -15,8 +15,6 @@ scipy = "1.7.0"
 mpdaf = "^3.5"
 lmfit = "^1.0.3"
 pandas = "^1.4.2"
-dill = "^0.3.4"
-pandarallel = "^1.6.1"
 line-profiler = "^3.5.1"
 viztracer = "^0.15.2"
 

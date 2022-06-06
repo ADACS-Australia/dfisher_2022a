@@ -4,17 +4,18 @@ import pandas as pd
 import os
 import time
 from viztracer import VizTracer
+from viztracer import log_sparse
 import multiprocessing as mp
 from multiprocessing import RawArray, sharedctypes
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import itertools
 import threading
+import line_profiler
 # from pandarallel import pandarallel
 from functools import partial
 from ..io.cube import FitReadyCube
 from ..models import Lm_Const_1GaussModel
 # pandarallel.initialize()
-
 # to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
 ctx = mp.get_context('fork')
         
@@ -92,7 +93,8 @@ class FitCube():
         res[:] = np.nan
         self.res = res
 
-    
+
+    @log_sparse
     def _fit_single_index(self, i):
         start = time.time()
         records = np.ctypeslib.as_array(shared_records_c)
@@ -137,8 +139,10 @@ class FitCube():
         # return result
         
 
-
+    @log_sparse
     def fit_all(self, nprocess, chunksize=10):
+        prof = line_profiler.LineProfiler()
+        FitCube._fit_single_index = prof(FitCube._fit_single_index)
         axis_spec = self.data.shape[0]
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
@@ -176,6 +180,7 @@ class FitCube():
 
         records = np.ctypeslib.as_array(shared_records_c)
         self.records = records
+        prof.dump_stats('worker.lprof')
     # def _reshape_data(self):
     #     axis_spec = self.data.shape[0]
     #     axis_x = self.data.shape[1]

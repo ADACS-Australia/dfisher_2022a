@@ -11,7 +11,8 @@ from viztracer import VizTracer
 
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import dfisher_2022a as dfi
-
+# tracer = VizTracer()
+# tracer.start()
 time_start = time.time()
 path = "./../../dfisher_2022a/tests/data"
 file = path + "/" + "single_gaussian_muse_size.fits"
@@ -20,7 +21,7 @@ cube = Cube(file)
 
 
 model = dfi.models.Lm_Const_1GaussModel
-small = cube[:,100:150,100:150]
+small = cube[:,100:120,100:120]
 # small = cube
 axis_x = small.data.shape[1]
 axis_y = small.data.shape[2]
@@ -47,16 +48,17 @@ a = np.random.rand(10)
 def f(x):
     return a[x]
 
-if __name__ == "__main__":
-    # tracer = VizTracer()
-    
-    # fc = dfi.fits.base.FitCube(small, model)
-    # tracer.start()
-    fc.fit_all(4, 1000)
-    # tracer.stop()
-    # tracer.save()
-    time_m = time.time()
-    print("--- %s seconds ---" % (time_m - time_start))
+# if __name__ == "__main__":
+# tracer = VizTracer()
+
+# fc = dfi.fits.base.FitCube(small, model)
+# tracer.register_exit()
+# tracer.start()
+fc.fit_all(4, 100)
+# tracer.stop()
+# tracer.save()
+time_m = time.time()
+print("--- %s seconds ---" % (time_m - time_start))
     
     # fc._map_all(res, 10)
     # fc.extract_info()
@@ -88,8 +90,8 @@ if __name__ == "__main__":
     #             else:
     #                 print("failed")
 
-    print("--- %s seconds ---" % (time.time() - time_m))
-    print("--- %s seconds ---" % (time.time() - time_start))
+print("--- %s seconds ---" % (time.time() - time_m))
+print("--- %s seconds ---" % (time.time() - time_start))
 
 
 
