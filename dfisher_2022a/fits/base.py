@@ -141,8 +141,6 @@ class FitCube():
 
     @log_sparse
     def fit_all(self, nprocess, chunksize=10):
-        prof = line_profiler.LineProfiler()
-        FitCube._fit_single_index = prof(FitCube._fit_single_index)
         axis_spec = self.data.shape[0]
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
@@ -180,7 +178,7 @@ class FitCube():
 
         records = np.ctypeslib.as_array(shared_records_c)
         self.records = records
-        prof.dump_stats('worker.lprof')
+       
     # def _reshape_data(self):
     #     axis_spec = self.data.shape[0]
     #     axis_x = self.data.shape[1]
@@ -189,6 +187,43 @@ class FitCube():
     #     rdata = self.data.reshape(axis_spec, pix)
     #     if self.weights is not None:
     #         rweights = self.weights.reshape(axis_spec, pix)
+
+    def fit_all_serial(self):
+        axis_spec = self.data.shape[0]
+        axis_x = self.data.shape[1]
+        axis_y = self.data.shape[2]
+        pix = axis_x*axis_y
+        rdata = self.data.reshape(axis_spec, pix)
+
+        if self.weights is not None:
+            rweights = self.weights.reshape(axis_spec, pix)
+
+
+        # just for timing purpose
+        records = np.zeros(pix)
+        records[:] = np.nan
+
+        for i in range(pix):
+            start = time.time()
+            sp = rdata[:,i]
+            if self.weights is not None:            
+                sp_weight = rweights[:,i]
+            else:
+                sp_weight = None
+            
+                     
+            m = self.model()
+            params = m.guess(sp, self.x)
+
+            result = m.fit(sp, params, x=self.x, weights=sp_weight)
+            g = result.params.get('g1_height')
+            self.res[i,0] = g
+            end = time.time()
+            records[i] = end -start
+            name = os.getpid()
+            print("subprocess: ", name, " pixel: ", i)
+
+
 
     def _fit_all(self, nprocess, batch_size=10):
         axis_x = self.data.shape[1]
