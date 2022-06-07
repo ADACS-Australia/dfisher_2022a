@@ -11,6 +11,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import itertools
 import threading
 import line_profiler
+import psutil
 import tracemalloc
 # from pandarallel import pandarallel
 from functools import partial
@@ -100,7 +101,7 @@ class FitCube():
         start = time.time()
         current, peak = tracemalloc.get_traced_memory()
         # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-        records = np.ctypeslib.as_array(shared_records_c)
+        # records = np.ctypeslib.as_array(shared_records_c)
         
         # shared memory
         # res = np.ctypeslib.as_array(shared_res_c)
@@ -126,6 +127,7 @@ class FitCube():
         #     result = (i, None)
 
         # else:                
+        
         m = self.model()
         params = m.guess(sp, self.x)
 
@@ -133,7 +135,8 @@ class FitCube():
         g = result.params.get('g1_height')
         res[i,0] = g
         end = time.time()
-        records[i] = end -start
+        # records[i] = end -start
+        
         name = os.getpid()
         current, peak = tracemalloc.get_traced_memory()
         # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
@@ -144,6 +147,7 @@ class FitCube():
             
         # return result
 
+    @log_sparse
     def _initial(self):
         # shared memory
         global res

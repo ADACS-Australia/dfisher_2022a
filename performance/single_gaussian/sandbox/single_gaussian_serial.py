@@ -31,14 +31,14 @@ fc = dfi.fits.base.FitCube(small, model)
 
 
 # if __name__ == "__main__":
-tracer = VizTracer(max_stack_depth=5)
-tracer.start()
+# tracer = VizTracer(max_stack_depth=5)
+# tracer.start()
 
 # fit spaxel serially 
 fc.fit_all_serial()
 
-tracer.stop()
-tracer.save()
+# tracer.stop()
+# tracer.save()
 time_m = time.time()
 print("--- %s seconds ---" % (time_m - time_start))
 
