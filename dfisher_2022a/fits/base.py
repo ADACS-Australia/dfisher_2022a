@@ -103,9 +103,9 @@ class FitCube():
         records = np.ctypeslib.as_array(shared_records_c)
         
         # shared memory
-        res = np.ctypeslib.as_array(shared_res_c)
-        rdata = np.ctypeslib.as_array(shared_data)
-        rid = id(rdata)
+        # res = np.ctypeslib.as_array(shared_res_c)
+        # rdata = np.ctypeslib.as_array(shared_data)
+        # rid = id(rdata)
 
 
         # axis_spec = self.data.shape[0]
@@ -116,7 +116,7 @@ class FitCube():
         sp = rdata[:,i]
 
         if self.weights is not None:
-            rweights = np.ctypeslib.as_array(shared_weights)
+            # rweights = np.ctypeslib.as_array(shared_weights)
             # rweights = self.weights.reshape(axis_spec, pix)
             sp_weight = rweights[:,i]
         else:
@@ -137,13 +137,24 @@ class FitCube():
         name = os.getpid()
         current, peak = tracemalloc.get_traced_memory()
         # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-        print("subprocess: ", name, " pixel: ", i, " id: ", rid)
+        print("subprocess: ", name, " pixel: ", i)
         
 
             # type: lmfit ModelResult 
             
         # return result
+
+    def _initial(self):
+        # shared memory
+        global res
+        res = np.ctypeslib.as_array(shared_res_c)
+        global rdata
+        rdata = np.ctypeslib.as_array(shared_data)
         
+        if self.weights is not None:
+            global rweights
+            rweights = np.ctypeslib.as_array(shared_weights)
+
 
     @log_sparse
     def fit_all(self, nprocess, chunksize=10):
@@ -175,7 +186,7 @@ class FitCube():
         shared_records_c = sharedctypes.RawArray(recordsc._type_, recordsc)
 
         # ctx = get_context('fork')
-        p = ctx.Pool(processes=nprocess)
+        p = ctx.Pool(processes=nprocess, initializer=self._initial)
         print("start pooling")
         p.map(self._fit_single_index, list(range(pix)), chunksize=chunksize)
         print("finish pooling")
