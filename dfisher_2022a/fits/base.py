@@ -11,6 +11,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import itertools
 import threading
 import line_profiler
+import tracemalloc
 # from pandarallel import pandarallel
 from functools import partial
 from ..io.cube import FitReadyCube
@@ -97,11 +98,14 @@ class FitCube():
     @log_sparse
     def _fit_single_index(self, i):
         start = time.time()
+        current, peak = tracemalloc.get_traced_memory()
+        # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
         records = np.ctypeslib.as_array(shared_records_c)
         
         # shared memory
         res = np.ctypeslib.as_array(shared_res_c)
         rdata = np.ctypeslib.as_array(shared_data)
+        rid = id(rdata)
 
 
         # axis_spec = self.data.shape[0]
@@ -131,7 +135,9 @@ class FitCube():
         end = time.time()
         records[i] = end -start
         name = os.getpid()
-        print("subprocess: ", name, " pixel: ", i)
+        current, peak = tracemalloc.get_traced_memory()
+        # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+        print("subprocess: ", name, " pixel: ", i, " id: ", rid)
         
 
             # type: lmfit ModelResult 
@@ -141,6 +147,7 @@ class FitCube():
 
     @log_sparse
     def fit_all(self, nprocess, chunksize=10):
+        tracemalloc.start()
         axis_spec = self.data.shape[0]
         axis_x = self.data.shape[1]
         axis_y = self.data.shape[2]
@@ -178,7 +185,9 @@ class FitCube():
 
         records = np.ctypeslib.as_array(shared_records_c)
         self.records = records
-       
+        current, peak = tracemalloc.get_traced_memory()
+        print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+        tracemalloc.stop()
     # def _reshape_data(self):
     #     axis_spec = self.data.shape[0]
     #     axis_x = self.data.shape[1]
