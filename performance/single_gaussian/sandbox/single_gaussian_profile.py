@@ -30,12 +30,14 @@ xwav = small.wave.coord()
 fc = dfi.fits.base.FitCube(small, model)
 
 
+
+
 # if __name__ == "__main__":
 # tracer = VizTracer(max_stack_depth=5)
 # tracer.start()
 
 # fit spaxel serially 
-fc.fit_all_serial()
+fc.single_out_fitting()
 
 # tracer.stop()
 # tracer.save()

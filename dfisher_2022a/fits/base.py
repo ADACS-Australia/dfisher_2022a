@@ -95,18 +95,19 @@ class FitCube():
         self.res = res
 
 
-    @log_sparse
+    @profile
     def _fit_single_index(self, i):
         start = time.time()
         current, peak = tracemalloc.get_traced_memory()
-        # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+        print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
         records = np.ctypeslib.as_array(shared_records_c)
         
         # shared memory
         res = np.ctypeslib.as_array(shared_res_c)
         rdata = np.ctypeslib.as_array(shared_data)
         rid = id(rdata)
-
+        current, peak = tracemalloc.get_traced_memory()
+        print(f"after loading ctypes, Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
 
         # axis_spec = self.data.shape[0]
         # axis_x = self.data.shape[1]
@@ -145,7 +146,7 @@ class FitCube():
         # return result
         
 
-    @log_sparse
+    
     def fit_all(self, nprocess, chunksize=10):
         tracemalloc.start()
         axis_spec = self.data.shape[0]
@@ -196,7 +197,7 @@ class FitCube():
     #     rdata = self.data.reshape(axis_spec, pix)
     #     if self.weights is not None:
     #         rweights = self.weights.reshape(axis_spec, pix)
-
+    
     def fit_all_serial(self):
         axis_spec = self.data.shape[0]
         axis_x = self.data.shape[1]
@@ -232,6 +233,42 @@ class FitCube():
             name = os.getpid()
             print("subprocess: ", name, " pixel: ", i)
 
+    @profile
+    def single_out_fitting(self):
+        tracemalloc.start()
+        axis_spec = self.data.shape[0]
+        axis_x = self.data.shape[1]
+        axis_y = self.data.shape[2]
+        pix = axis_x*axis_y
+        rdata = self.data.reshape(axis_spec, pix)
+        rdatac = np.ctypeslib.as_ctypes(rdata)
+        global shared_data
+        shared_data = sharedctypes.RawArray(rdatac._type_, rdatac)
+
+        if self.weights is not None:
+            rweights = self.weights.reshape(axis_spec, pix)
+            rweightsc = np.ctypeslib.as_ctypes(rweights)
+            global shared_weights
+            shared_weights = sharedctypes.RawArray(rweightsc._type_, rweightsc)
+
+        resc = np.ctypeslib.as_ctypes(self.res)
+        global shared_res_c
+        shared_res_c = mp.sharedctypes.RawArray(resc._type_, resc)
+
+        # just for timing purpose
+        records = np.zeros(pix)
+        records[:] = np.nan
+        recordsc = np.ctypeslib.as_ctypes(records)
+        global shared_records_c
+        shared_records_c = sharedctypes.RawArray(recordsc._type_, recordsc)
+
+        for i in range(pix):
+            self._fit_single_index(i)
+
+        res = np.ctypeslib.as_array(shared_res_c)
+        self.res = res
+
+        
 
 
     def _fit_all(self, nprocess, batch_size=10):
