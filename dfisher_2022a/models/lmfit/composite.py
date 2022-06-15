@@ -1,7 +1,14 @@
-# composite models
-import lmfit
+""" composite models
+"""
+
+__all__ = ["Const_1GaussModel"]
+
 import operator
-from .base import ConstantModelH, GaussianModelH, CompositeModel, _guess_1gauss
+
+import lmfit
+
+from .base import CompositeModel, ConstantModelH, GaussianModelH, _guess_1gauss
+
 
 class Const_1GaussModel(CompositeModel):
     """Constant + 1 Gaussian Model.

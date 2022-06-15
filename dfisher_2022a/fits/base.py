@@ -1,28 +1,38 @@
-# interface between cube and model
+'''
+    This is the base class for all fits.
+    It contains the basic functions to fit a model to selected spaxels in a data cube.
+'''
+__all__ = ["FitCube", "FitResult", "Output"]
+
+import itertools
+import multiprocessing as mp
+import os
+import threading
+import time
+import tracemalloc
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from functools import partial
+from multiprocessing import RawArray, sharedctypes
+
+import line_profiler
 import numpy as np
 import pandas as pd
-import os
-import time
-from viztracer import VizTracer
-from viztracer import log_sparse
-import multiprocessing as mp
-from multiprocessing import RawArray, sharedctypes
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
-import itertools
-import threading
-import line_profiler
-import tracemalloc
-# from pandarallel import pandarallel
-from functools import partial
+from viztracer import VizTracer, log_sparse
+
 from ..io.cube import FitReadyCube
 from ..models import Lm_Const_1GaussModel
-# pandarallel.initialize()
+
 # to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
+
+
+
 ctx = mp.get_context('fork')
-        
+# 
+
 
 class FitCube():
-    def __init__(self, cube, model):
+        
+    def __init__(self, cube, model):        
         self.x = cube.wave.coord()
         self.data = cube.data
         self.var = cube.var
@@ -31,14 +41,14 @@ class FitCube():
         self._create_results_placeholder()
         self.name = None
 
-    def _get_weight(self):
+    def _get_weight(self):      
         if self.var is not None:
             weights = 1 / np.sqrt(np.abs(self.var))
         else:
             weights = None
         self.weights = weights
 
-    def fit_single_spaxel(self, i, j, enable_res=False):
+    def fit_single_spaxel(self, i, j, enable_res=False):        
         spaxel = self.data[:, i, j]
 
         if self.weights is not None:
@@ -95,7 +105,7 @@ class FitCube():
         self.res = res
 
 
-    @profile
+    # @profile
     def _fit_single_index(self, i):
         start = time.time()
         current, peak = tracemalloc.get_traced_memory()
@@ -233,7 +243,7 @@ class FitCube():
             name = os.getpid()
             print("subprocess: ", name, " pixel: ", i)
 
-    @profile
+    # @profile
     def single_out_fitting(self):
         tracemalloc.start()
         axis_spec = self.data.shape[0]
