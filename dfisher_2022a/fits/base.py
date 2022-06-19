@@ -34,7 +34,7 @@ class FitCube():
         
     def __init__(self, cube, model):        
         self.x = cube.wave.coord()
-        self.data = cube.data
+        self.data = np.transpose(cube.data, axes=(1,2,0)).copy()
         self.var = cube.var
         self._get_weight()
         self.model = model
@@ -43,21 +43,22 @@ class FitCube():
 
     def _get_weight(self):      
         if self.var is not None:
+            self.var = np.transpose(self.var, axes=(1,2,0)).copy()
             weights = 1 / np.sqrt(np.abs(self.var))
         else:
             weights = None
         self.weights = weights
 
     def fit_single_spaxel(self, i, j, enable_res=False):        
-        spaxel = self.data[:, i, j]
+        spaxel = self.data[i,j,:]
 
         if self.weights is not None:
-            sp_weight = self.weights[:,i,j]
+            sp_weight = self.weights[i,j,:]
         else:
             sp_weight = None
 
         if enable_res == True:
-            axis_y = self.data.shape[2]
+            axis_y = self.data.shape[1]
             idx = i*axis_y + j
             if spaxel.mask.all():
                 print("masked all data: ", i, j)
@@ -96,9 +97,9 @@ class FitCube():
     #TODO: 3. writeout all the necessary information
 
     def _create_results_placeholder(self):
-        axis_spec = self.data.shape[0]
-        axis_x = self.data.shape[1]
-        axis_y = self.data.shape[2]
+        axis_spec = self.data.shape[2]
+        axis_x = self.data.shape[0]
+        axis_y = self.data.shape[1]
         pix = axis_x*axis_y
         res = np.zeros((pix,1))
         res[:] = np.nan
@@ -108,28 +109,29 @@ class FitCube():
     # @profile
     def _fit_single_index(self, i):
         start = time.time()
-        current, peak = tracemalloc.get_traced_memory()
-        print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
         records = np.ctypeslib.as_array(shared_records_c)
         
         # shared memory
         res = np.ctypeslib.as_array(shared_res_c)
         rdata = np.ctypeslib.as_array(shared_data)
-        rid = id(rdata)
-        current, peak = tracemalloc.get_traced_memory()
-        print(f"after loading ctypes, Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+        # rid = id(rdata)
+        # print(rdata.flags)
+        # current, peak = tracemalloc.get_traced_memory()
+        # print(f"after loading ctypes, Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
 
         # axis_spec = self.data.shape[0]
         # axis_x = self.data.shape[1]
         # axis_y = self.data.shape[2]
         # pix = axis_x*axis_y
         # rdata = self.data.reshape(axis_spec, pix)
-        sp = rdata[:,i]
+        sp = rdata[i,:]
 
         if self.weights is not None:
             rweights = np.ctypeslib.as_array(shared_weights)
             # rweights = self.weights.reshape(axis_spec, pix)
-            sp_weight = rweights[:,i]
+            sp_weight = rweights[i,:]
         else:
             sp_weight = None
         
@@ -148,7 +150,7 @@ class FitCube():
         name = os.getpid()
         current, peak = tracemalloc.get_traced_memory()
         # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-        print("subprocess: ", name, " pixel: ", i, " id: ", rid)
+        print("subprocess: ", name, " pixel: ", i)
         
 
             # type: lmfit ModelResult 
@@ -159,17 +161,17 @@ class FitCube():
     
     def fit_all(self, nprocess, chunksize=10):
         tracemalloc.start()
-        axis_spec = self.data.shape[0]
-        axis_x = self.data.shape[1]
-        axis_y = self.data.shape[2]
+        axis_spec = self.data.shape[2]
+        axis_x = self.data.shape[0]
+        axis_y = self.data.shape[1]
         pix = axis_x*axis_y
-        rdata = self.data.reshape(axis_spec, pix)
+        rdata = self.data.reshape(pix,axis_spec)
         rdatac = np.ctypeslib.as_ctypes(rdata)
         global shared_data
         shared_data = sharedctypes.RawArray(rdatac._type_, rdatac)
 
         if self.weights is not None:
-            rweights = self.weights.reshape(axis_spec, pix)
+            rweights = self.weights.reshape(pix,axis_spec)
             rweightsc = np.ctypeslib.as_ctypes(rweights)
             global shared_weights
             shared_weights = sharedctypes.RawArray(rweightsc._type_, rweightsc)
