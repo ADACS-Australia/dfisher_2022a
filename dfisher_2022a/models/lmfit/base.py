@@ -1,7 +1,9 @@
 # base models
-from ..base import constantH, gaussianH, guess_from_peak, guess_1gauss
-import numpy as np
 import lmfit
+import numpy as np
+
+from ..base import constantH, gaussianH, guess_1gauss, guess_from_peak
+
 
 def flux_expr(model):
     """Return constraint expression for line flux."""

@@ -42,11 +42,13 @@ def guess_from_peak(y, x, negative=False):
 
     height = maxy - miny
 
+    #TODO: raise an error when height is a masked constant
+
     # set a backup sigma, and center in case using the halfmax calculation doesn't work.
     # The backup sigma = 1/6 the full x range and the backup center is the
     # location of the maximum
     sig = (maxx - minx) / 6.0
-    cen = x[np.argmax(y)]
+    cen = x[np.argmax(y)] 
 
     # the explicit conversion to a NumPy array is to make sure that the
     # indexing on line 65 also works if the data is supplied as pandas.Series

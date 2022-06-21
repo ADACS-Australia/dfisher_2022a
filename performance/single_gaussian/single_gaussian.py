@@ -19,6 +19,7 @@ axis_x = small.data.shape[0]
 axis_y = small.data.shape[1]
 
 da = small.data
+print(type(cube.data))
 xwav = small.wave.coord()
 fc = dfi.fits.base.FitCube(small, model)
 time_m = time.time()

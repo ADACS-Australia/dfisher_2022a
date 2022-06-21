@@ -20,10 +20,10 @@ cube = Cube(file)
 
 
 model = dfi.models.Lm_Const_1GaussModel
-small = cube[:,100:120,100:120]
+small = cube[:, 100:120,100:120]
 # small = cube
-axis_x = small.data.shape[1]
-axis_y = small.data.shape[2]
+axis_x = small.data.shape[0]
+axis_y = small.data.shape[1]
 
 da = small.data
 xwav = small.wave.coord()

@@ -29,12 +29,14 @@ from ..models import Lm_Const_1GaussModel
 ctx = mp.get_context('fork')
 # 
 
+#TODO: write new error class for fitting spaxel (reference: fc mpdaf_ext)
 
 class FitCube():
         
     def __init__(self, cube, model):        
         self.x = cube.wave.coord()
         self.data = np.transpose(cube.data, axes=(1,2,0)).copy()
+        print(self.data.data.flags)
         self.var = cube.var
         self._get_weight()
         self.model = model
@@ -127,6 +129,8 @@ class FitCube():
         # pix = axis_x*axis_y
         # rdata = self.data.reshape(axis_spec, pix)
         sp = rdata[i,:]
+        # print(rdata.flags)
+        # print("wave coord: ", type(self.x), self.x)
 
         if self.weights is not None:
             rweights = np.ctypeslib.as_array(shared_weights)
@@ -141,6 +145,7 @@ class FitCube():
         # else:                
         m = self.model()
         params = m.guess(sp, self.x)
+        
 
         result = m.fit(sp, params, x=self.x, weights=sp_weight)
         g = result.params.get('g1_height')
@@ -166,6 +171,8 @@ class FitCube():
         axis_y = self.data.shape[1]
         pix = axis_x*axis_y
         rdata = self.data.reshape(pix,axis_spec)
+        # print(self.data.flags)
+        # print(rdata.flags)
         rdatac = np.ctypeslib.as_ctypes(rdata)
         global shared_data
         shared_data = sharedctypes.RawArray(rdatac._type_, rdatac)
@@ -211,14 +218,14 @@ class FitCube():
     #         rweights = self.weights.reshape(axis_spec, pix)
     
     def fit_all_serial(self):
-        axis_spec = self.data.shape[0]
-        axis_x = self.data.shape[1]
-        axis_y = self.data.shape[2]
+        axis_spec = self.data.shape[2]
+        axis_x = self.data.shape[0]
+        axis_y = self.data.shape[1]
         pix = axis_x*axis_y
-        rdata = self.data.reshape(axis_spec, pix)
+        rdata = self.data.reshape(pix, axis_spec)
 
         if self.weights is not None:
-            rweights = self.weights.reshape(axis_spec, pix)
+            rweights = self.weights.reshape(pix, axis_spec)
 
 
         # just for timing purpose
@@ -227,13 +234,12 @@ class FitCube():
 
         for i in range(pix):
             start = time.time()
-            sp = rdata[:,i]
+            sp = rdata[i,:]
             if self.weights is not None:            
-                sp_weight = rweights[:,i]
+                sp_weight = rweights[i,:]
             else:
                 sp_weight = None
-            
-                     
+              
             m = self.model()
             params = m.guess(sp, self.x)
 
