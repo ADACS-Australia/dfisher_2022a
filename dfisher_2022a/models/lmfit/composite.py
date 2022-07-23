@@ -7,10 +7,11 @@ import operator
 
 import lmfit
 
-from .base import CompositeModel, ConstantModelH, GaussianModelH, _guess_1gauss
+from ..base import gaussianCH
+from .base import ConstantModelH, GaussianModelH, _guess_1gauss
 
 
-class Const_1GaussModel(CompositeModel):
+class Const_1GaussModel(lmfit.model.CompositeModel):
     """Constant + 1 Gaussian Model.
 
     Essentially created by:
@@ -22,7 +23,7 @@ class Const_1GaussModel(CompositeModel):
     'g1_sigma',
     'c']
     """
-
+    
     def __init__(
         self, independent_vars=["x"], prefix="", nan_policy="raise", **kwargs  # noqa
     ):
@@ -39,6 +40,7 @@ class Const_1GaussModel(CompositeModel):
         # the below lines gives g1 + c
         super().__init__(g1, c, operator.add)
         self._set_paramhints_prefix()
+        self.com_func = gaussianCH
 
     def _set_paramhints_prefix(self):
         # GaussianModelH paramhints already sets sigma min=0 and height min=0
@@ -48,5 +50,10 @@ class Const_1GaussModel(CompositeModel):
         return "constant + 1 gaussian"
 
     guess = _guess_1gauss
+
+    #NOTE: the following function replace the default eval function defined in lmfit to speed up 
+    def eval(self, nvars, **kwargs):
+        # print("new eval: ", nvars)
+        return self.com_func(kwargs['x'], *nvars)
 
     __init__.__doc__ = lmfit.models.COMMON_INIT_DOC
