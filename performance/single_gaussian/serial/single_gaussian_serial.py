@@ -2,37 +2,53 @@
 # coding: utf-8
 
 from mpdaf.obj import Cube
+import numpy as np
+import os
 import time
-import dfisher_2022a as dfi
+from viztracer import VizTracer
 
+
+import dfisher_2022a as dfi
+   
+# tracer = VizTracer()
+# tracer.start()
 time_start = time.time()
-path = "./../../dfisher_2022a/tests/data"
+path = "./../../../dfisher_2022a/tests/data"
 file = path + "/" + "single_gaussian_muse_size.fits"
 
 cube = Cube(file)
 
 
 model = dfi.models.Lm_Const_1GaussModel
-small = cube[:,100:120,100:120]
+small = cube[:, 100:120,100:120]
+# small = cube[:, 100:101,100]
 # small = cube
 axis_x = small.data.shape[0]
 axis_y = small.data.shape[1]
 
 da = small.data
-print(type(cube.data))
 xwav = small.wave.coord()
 fc = dfi.fits.base.FitCube(small, model)
-time_m = time.time()
+
+
 # if __name__ == "__main__":
+# tracer = VizTracer(max_stack_depth=5)
+# tracer.start()
 
-# fit spaxels parallelly using multiprocessing
-fc.fit_all(4, 100)
+# fit spaxel serially 
+fc.fit_all_serial()
 
-time_e = time.time()
+# tracer.stop()
+# tracer.save()
+time_m = time.time()
 print("--- %s seconds ---" % (time_m - time_start))
-print("--- %s seconds ---" % (time_e - time_m))
-    
-    
+
+
+
+
+
+
+
 
 
 
