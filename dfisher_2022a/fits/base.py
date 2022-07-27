@@ -2,7 +2,7 @@
     This is the base class for all fits.
     It contains the basic functions to fit a model to selected spaxels in a data cube.
 '''
-__all__ = ["FitCube", "FitResult", "Output"]
+__all__ = ["FitCube", "FitResult", "FitOutput"]
 
 import itertools
 import multiprocessing as mp
@@ -20,7 +20,8 @@ import pandas as pd
 from viztracer import VizTracer, log_sparse
 
 from ..io.cube import FitReadyCube
-from ..models import Lm_Const_1GaussModel
+from ..models import Lm_Const_1GaussModel, GaussianConstModelH
+from ..models.base import guess_1gauss
 
 # to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
 
@@ -103,9 +104,19 @@ class FitCube():
         axis_x = self.data.shape[0]
         axis_y = self.data.shape[1]
         pix = axis_x*axis_y
-        res = np.zeros((pix,1))
+
+        stats_col = 5 # TODO: CHANGE HARD CODED TO USER CHOICE
+
+        m = self.model()
+        pars = m.make_params()
+        pars_col = 2 * len(pars) # number of parameters, including independent and dependent
+        
+        cols = stats_col + pars_col
+
+        res = np.zeros((pix,cols))
         res[:] = np.nan
         self.res = res
+       
 
 
     # @profile
@@ -139,10 +150,7 @@ class FitCube():
         else:
             sp_weight = None
         
-        # if sp.mask.all():
-        #     result = (i, None)
-
-        # else:                
+                     
         m = self.model()
         params = m.guess(sp, self.x)
         
@@ -157,13 +165,6 @@ class FitCube():
         # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
         print("subprocess: ", name, " pixel: ", i)
         
-
-            # type: lmfit ModelResult 
-            
-        # return result
-        
-
-    
     def fit_all(self, nprocess, chunksize=10):
         tracemalloc.start()
         axis_spec = self.data.shape[2]
@@ -208,14 +209,6 @@ class FitCube():
         current, peak = tracemalloc.get_traced_memory()
         print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
         tracemalloc.stop()
-    # def _reshape_data(self):
-    #     axis_spec = self.data.shape[0]
-    #     axis_x = self.data.shape[1]
-    #     axis_y = self.data.shape[2]
-    #     pix = axis_x*axis_y
-    #     rdata = self.data.reshape(axis_spec, pix)
-    #     if self.weights is not None:
-    #         rweights = self.weights.reshape(axis_spec, pix)
     
     def fit_all_serial(self):
         axis_spec = self.data.shape[2]
@@ -231,25 +224,67 @@ class FitCube():
         # just for timing purpose
         records = np.zeros(pix)
         records[:] = np.nan
+        
+        for i in range(pix):
+            
+            start = time.time()
+            sp = rdata[i,:]
+            
+            if self.weights is not None:            
+                sp_weight = rweights[i,:]
+            else:
+                sp_weight = None
+            
+            if sp.mask.all():
+                print("the spectrum is masked")
+                continue
+            else:
+                m = self.model()
+                params = m.guess(sp, self.x)
+
+
+                result = m.fit(sp, params, x=self.x, weights=sp_weight)
+                out = FitOutput(result)
+                out = out.get_col_value()
+
+                print("columns value: ", out)
+                nfev = result.nfev
+                # g = result.params.get('g1_height')
+                # self.res[i,0] = g
+                # self.res[i] = self._write_fit_output(result)
+                self.res[i] = out
+                end = time.time()
+                records[i] = end -start
+                name = os.getpid()
+                print("subprocess: ", name, " pixel: ", i, " nfev: ", nfev)
+            np.save("res", self.res)
+            
+    def record_guess(self):
+        axis_spec = self.data.shape[2]
+        axis_x = self.data.shape[0]
+        axis_y = self.data.shape[1]
+        pix = axis_x*axis_y
+        rdata = self.data.reshape(pix, axis_spec)
+
+        if self.weights is not None:
+            rweights = self.weights.reshape(pix, axis_spec)
+
+        guess_res = np.zeros((pix, 4))
 
         for i in range(pix):
+            
             start = time.time()
             sp = rdata[i,:]
             if self.weights is not None:            
                 sp_weight = rweights[i,:]
             else:
                 sp_weight = None
-              
-            m = self.model()
-            params = m.guess(sp, self.x)
+            guess_res[i] = guess_1gauss(sp, self.x)
 
-            result = m.fit(sp, params, x=self.x, weights=sp_weight)
-            g = result.params.get('g1_height')
-            self.res[i,0] = g
-            end = time.time()
-            records[i] = end -start
-            name = os.getpid()
-            print("subprocess: ", name, " pixel: ", i)
+        out_file = os.getcwd() + "/guess"
+
+        np.save(out_file, guess_res)
+
 
     # @profile
     def single_out_fitting(self):
@@ -287,6 +322,7 @@ class FitCube():
         self.res = res
 
         
+    
 
 
     def _fit_all(self, nprocess, batch_size=10):
@@ -358,11 +394,7 @@ class FitCube():
             info = getattr(fres, self.name)
             return info
 
-    def extract_info(self):
-        sample_res = self.res["Result"][0]
-        self._extract_info_single(sample_res)
-        for name in self.names:
-            self._extract_info(name)
+   
 
     def write_txt(self, filename):
         df = self.res.drop(axis=1, columns="Result")
@@ -417,15 +449,52 @@ class FitResult():
         return names
 
     
-class Output():
-    def __init__(self, dataframe) -> None:
-        self.df = dataframe
+class FitOutput():
+    _default = ["success", "aic", "bic", "chisqr", "redchi"]
+    _pars = []
+    col_dict = {}
 
-    def to_csv(self, filename):
-        self.df.to_csv(filename, index=False, sep="\t", float_format="%.5f")
+    def __init__(self, result):
+        self._get_default_columns(result)
 
-    def to_hdf5():
+
+        # self._get_out_array()
+
+    def _get_par_info(self,result):
+        pars = result.params
+        for key, val in pars.items():
+            self.col_dict[key] = val.value
+            self.col_dict[key+"_err"] = val.stderr
+    
+    def _get_default_info(self, res):
+        for name in self._default:
+            val = getattr(res, name)
+            self.col_dict[name] = getattr(res, name)
+
+    def _get_default_columns(self, res):
+        self._get_default_info(res)
+        self._get_par_info(res)
+        self.columns = list(self.col_dict.keys())
+
+    def get_col_value(self):
+        return list(self.col_dict.values())
+        
+
+    def _validate_name(name, res):
+        """valid user input name"""
         pass
+
+    def set_columns(self, names):
+        """update column names according to user input"""
+        pass
+        
+    
+        
+
+
+    
+
+    
 
 
 
