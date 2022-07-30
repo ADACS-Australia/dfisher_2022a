@@ -1,5 +1,6 @@
 __all__ = ["RestCube", "FitReadyCube", "ProcessedCube", "SNRMap"]
 
+from turtle import left
 import numpy as np
 import numpy.ma as ma
 
@@ -7,37 +8,85 @@ from mpdaf.obj import Cube
 from .line import Line
 
 class ProcessedCube():
+    
     def __init__(self, cube:Cube, z=0.0, snr_threshold=None):
-        self.cube = cube
+        self.cube = cube.copy()
         self.z = z
         self.snr_threshold = None
-        self._de_redshift()
+        self._de_redshift(cube)
+        print("reload 5")
+    
+    @property
+    def data(self):
+        return self.cube.data
 
-    def _de_redshift(self):
-        obs_wav = self.cube.wave.get_crval()
+    @property
+    def weight(self):      
+        if self.cube.var is not None:
+            weight = 1 / np.sqrt(np.abs(self.cube.var))
+        else:
+            weight = None
+        return weight
+
+    @property
+    def x(self):
+        return self.cube.wave.coord()
+
+    def _de_redshift(self, cube):
+        obs_wav = cube.wave.get_crval()
         res_wav = obs_wav / (1 + self.z)
         self._restwave = res_wav
+        # update cube attribute
         self.cube.wave.set_crval(res_wav)
+
+    # def _init_process(self, cube):
+    #     """ initial datacube processing at creation"""
+    #     self._de_redshift(cube)
+    #     if self.snr_threshold:
+    #         self.filter_snr(self.snr_threshold)
+
 
     # TODO: CHECK HOW THIS IS DONE IN THREADCOUNT
     def refine_redshift(self):
         """allow user to refine redshift"""
         pass
+
+class CubeRegion():
+    def __init__(self, cube: Cube, line: Line, left=15, right=15, snr_threshold=None):
+        self.cube = cube.copy()
+        self.line = line
+        self.left = left
+        self.right = right  
+        self.snr_threshold = snr_threshold
+
+    @property
+    def low(self):
+        return self.line.wavelength - self.left
+    
+    @property
+    def high(self):
+        return self.line.wavelength + self.right
+
     def _get_wave_index(self, wavelength: float, nearest=True):
         wave_index = self.cube.wave.pixel(wavelength, nearest=nearest)
         return wave_index
 
-    def set_fit_region(self, line: Line):
-        low_idx = self._get_wave_index(line.low)
-        high_idx = self._get_wave_index(line.high)
-        self.cube = self.cube[low_idx:high_idx,:,:]
+    def _get_fit_region(self):
+        low_idx = self._get_wave_index(self.low)
+        high_idx = self._get_wave_index(self.high)
+        return self.cube[low_idx:high_idx,:,:]
 
-    def filter_snr(self, threshold):
-        snrmap = SNRMap(self.cube, threshold=threshold) #TODO: SEPARATE THE CREATION OF SNRMAP OBJECT AND USE IT
-        snr_mask = snrmap.filtered_snr.mask
-        self.cube = self.cube * snr_mask
-        
+    def _filter_snr(self, cube, threshold):
+        snrmap = SNRMap(cube, threshold=threshold) #TODO: SEPARATE THE CREATION OF SNRMAP OBJECT AND USE IT
+        snr_mask = snrmap.snr.mask
+        cube.mask = cube.mask + snr_mask
+        return cube
 
+    def get_regional_cube(self):
+        fcube = self._get_fit_region()
+        if self.snr_threshold:
+            fcube = self._filter_snr(fcube, self.snr_threshold)
+        return fcube
 class RestCube():
     def __init__(self, cube, z=0.0):
         self.z = z
@@ -80,10 +129,7 @@ class FitReadyCube():
 
         self.cube = subcube
 
-           
-            
-   
-        
+                
    
     # TODO: raise warning when the proposed fitting region is shrinked (exceeds the edge of the data range)
     # TODO: raise error if the fitting region is not included in the data range
@@ -110,12 +156,8 @@ class SNRMap():
     
     # TODO: SET THE FILLED_VALUE, MAKE IT EASY TO MASK CUBE
     def _filter_snr(self, threshold):
-        filtered_snr = ma.masked_where(self.snr < threshold, self.snr)
-        self.filtered_snr = filtered_snr
-
-        filtered_map = self.map
-        filtered_map.data = filtered_snr
-        self.filtered_map = filtered_map
+        self.snr = ma.masked_where(self.snr < threshold, self.snr)
+        self.map.data = self.snr
 
     def _count_masked_pixels(self,snr):
         """count the number of masked pixels"""

@@ -12,20 +12,23 @@ class Line():
     @property
     def wavelength(self):
         return EmissionLines[self.name]
- 
-class LineRegion():
-    def __init__(self, line:Line, right=15, left=15):
-        self.line = line
-        self.right = right
-        self.left = left
 
-    @property
-    def low(self):
-        return self.line.wavelength - self.left
+    def __repr__(self):
+        return f"{self.name}: {self.wavelength}"
+    
+# class LineRegion():
+#     def __init__(self, central:float, right=15, left=15):
+#         self.central = central
+#         self.right = right
+#         self.left = left
 
-    @property
-    def high(self):
-        return self.line.wavelength + self.right
+#     @property
+#     def low(self):
+#         return self.central - self.left
+
+#     @property
+#     def high(self):
+#         return self.central + self.right
 
 
    # def __init__(self, name):
