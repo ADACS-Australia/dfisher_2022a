@@ -2,7 +2,7 @@
     This is the base class for all fits.
     It contains the basic functions to fit a model to selected spaxels in a data cube.
 '''
-__all__ = ["FitCube", "FitResult", "FitOutput"]
+__all__ = ["FitCube", "CubeFitterLM", "ResultLM"]
 
 import itertools
 import multiprocessing as mp
@@ -22,6 +22,7 @@ from viztracer import VizTracer, log_sparse
 from ..io.cube import FitReadyCube
 from ..models import Lm_Const_1GaussModel, GaussianConstModelH
 from ..models.base import guess_1gauss
+from abc import ABC, abstractclassmethod, abstractmethod
 
 # to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
 
@@ -30,8 +31,167 @@ from ..models.base import guess_1gauss
 ctx = mp.get_context('fork')
 # 
 
+
+
+
+
 #TODO: write new error class for fitting spaxel (reference: fc mpdaf_ext)
 
+
+class CubeFitter(ABC):
+
+    @abstractmethod
+    def __init__(self, data, weight, x, model, fit_method):
+        self._data = data
+        self._weight = weight
+        self.x = x
+        self.model = model
+        self.method = fit_method
+        self.result = None
+    
+    @abstractclassmethod
+    def fit_cube(self):
+        """method to fit data cube"""
+
+class CubeFitterLM(CubeFitter):
+    """use lmfit as fitter (CPU fitter)"""
+
+    _lmfit_result_default = [
+    'aic', 'bic', 'chisqr',
+    'ndata', 'nfev',
+    'nfree', 'nvarys', 'redchi',
+    'success']
+
+    def __init__(self, data, weight, x, model, fit_method):
+        self._data = data
+        self._weight = weight
+        self.x = x
+        self.model = model
+        self.method = fit_method
+        self.result = None
+        self._prepare_data()
+        self._create_result_container()
+
+    # TODO: raise error if arr is not 3-d array
+    def _convert_array(self, arr):
+        arr = np.transpose(arr, axes=(1,2,0)).copy()
+        axis_y, axis_x = arr.shape[0], arr.shape[1]
+        axis_d = arr.shape[2]
+        pix = axis_y * axis_x
+        arr = arr.reshape(pix, axis_d)
+        return arr
+
+    def _prepare_data(self):
+        """prepare data for parallel fitting"""
+        self.data = self._convert_array(self._data)
+        if self._weight is not None:
+            self.weight = self._convert_array(self._weight)
+        else:
+            self.weight = self._weight
+
+    def _get_param_names(self):
+        """get the param names of the model"""
+        m = self.model()
+        _pars = m.make_params()
+        _pars_name = list(_pars.valuesdict().keys())
+        self._pars_name = _pars_name
+
+        return _pars_name
+
+    def _set_result_columns(self):
+        """set param columns: [name, err] for each param"""
+        _pars_name = self._get_param_names()
+        _pars_col = []
+        for p in _pars_name:
+            _pars_col += [p, p+"_err"]
+        self.result_columns = self._lmfit_result_default + _pars_col
+        
+    def _create_result_container(self):
+        """create result array with nan value"""
+        self._set_result_columns()
+        n_cols = len(self.result_columns)
+        result = np.zeros((self.data.shape[0], n_cols))
+        result[:] = np.nan
+        self.result = result
+
+    def _read_fit_result(self, res):
+        """res: ModelResult; read according to result columns"""
+        vals = []
+        for name in self._lmfit_result_default:
+            val = getattr(res, name)
+            vals.append(val)
+
+        pars = res.params
+        for name in self._pars_name:
+            val = pars[name]
+            vals += [val.value, val.stderr]
+
+        return vals
+    
+    def _fit_single_spaxel(self, pix_id: int):        
+        # shared memory
+        rresult = np.ctypeslib.as_array(shared_res_c)
+        rdata = np.ctypeslib.as_array(shared_data)
+        sp = rdata[pix_id,:]
+        if self.weight is not None:
+            rweight = np.ctypeslib.as_array(shared_weight)
+            sp_weight = rweight[pix_id,:]
+        else:
+            sp_weight = None
+        
+        # start fitting            
+        m = self.model()
+        params = m.guess(sp, self.x)
+        res = m.fit(sp, params, x=self.x, weights=sp_weight)
+
+        # read fitting result
+        out = self._read_fit_result(res)
+        rresult[pix_id,:] = out
+
+        # temp: process information
+        name = os.getpid()
+        current, peak = tracemalloc.get_traced_memory()
+        # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+        print("subprocess: ", name, " pixel: ", pix_id)
+
+
+    def fit_cube(self, nprocess=4, chunksize=10):
+        datac = np.ctypeslib.as_ctypes(self.data)
+        global shared_data
+        shared_data = sharedctypes.RawArray(datac._type_, datac)
+
+        if self.weight is not None:
+            weightc = np.ctypeslib.as_ctypes(self.weight)
+            global shared_weight
+            shared_weight = sharedctypes.RawArray(weightc._type_, weightc)
+
+        resc = np.ctypeslib.as_ctypes(self.result)
+        global shared_res_c
+        shared_res_c = mp.sharedctypes.RawArray(resc._type_, resc)
+
+        # ctx = get_context('fork')
+        npix = self.result.shape[0]
+        p = ctx.Pool(processes=nprocess)
+        print("start pooling")
+        p.map(self._fit_single_spaxel, list(range(npix)), chunksize=chunksize)
+        print("finish pooling")
+
+        res = np.ctypeslib.as_array(shared_res_c)
+        self.result = res
+
+        # temp print
+        current, peak = tracemalloc.get_traced_memory()
+        print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+        tracemalloc.stop()
+
+  
+    
+   
+    
+
+   
+
+        
 class FitCube():
         
     def __init__(self, cube, model):        
@@ -449,27 +609,38 @@ class FitResult():
         return names
 
     
-class FitOutput():
+#NOTE: TO DELETE THE RESULTLM CLASS
+class ResultLM():
+    """fit result (fitter: lmfit)"""
+    
     _default = ["success", "aic", "bic", "chisqr", "redchi"]
     _pars = []
     col_dict = {}
 
-    def __init__(self, result):
-        self._get_default_columns(result)
+    # TODO: allow user input list of output columns
+    def __init__(self, res, attr_list, param_name):
+        """res: ModelResult"""
+        self._get_default_columns(res)
 
 
         # self._get_out_array()
 
-    def _get_par_info(self,result):
-        pars = result.params
-        for key, val in pars.items():
-            self.col_dict[key] = val.value
-            self.col_dict[key+"_err"] = val.stderr
+    def _get_par_info(self,res, params_name):
+        pars = res.params
+        vals = []
+
+        for name in params_name:
+            val = pars[name]
+            vals += [val.value, val.stderr]
+        # for key, val in pars.items():
+        #     self.col_dict[key] = val.value
+        #     self.col_dict[key+"_err"] = val.stderr
     
-    def _get_default_info(self, res):
-        for name in self._default:
+    def _get_default_info(self, res, attr_list):
+        vals = []
+        for name in attr_list:           
             val = getattr(res, name)
-            self.col_dict[name] = getattr(res, name)
+            vals.append(val)
 
     def _get_default_columns(self, res):
         self._get_default_info(res)
@@ -484,9 +655,7 @@ class FitOutput():
         """valid user input name"""
         pass
 
-    def set_columns(self, names):
-        """update column names according to user input"""
-        pass
+    
         
     
         
