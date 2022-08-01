@@ -22,6 +22,7 @@ from viztracer import VizTracer, log_sparse
 from ..io.cube import FitReadyCube
 from ..models import Lm_Const_1GaussModel, GaussianConstModelH
 from ..models.base import guess_1gauss
+from ..exceptions import InputDimError, InputShapeError
 from abc import ABC, abstractclassmethod, abstractmethod
 
 # to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
@@ -72,7 +73,6 @@ class CubeFitterLM(CubeFitter):
         self._prepare_data()
         self._create_result_container()
 
-    # TODO: raise error if arr is not 3-d array
     def _convert_array(self, arr):
         arr = np.transpose(arr, axes=(1,2,0)).copy()
         axis_y, axis_x = arr.shape[0], arr.shape[1]
@@ -83,8 +83,17 @@ class CubeFitterLM(CubeFitter):
 
     def _prepare_data(self):
         """prepare data for parallel fitting"""
+        # input check
+        if self._data.ndim != 3:
+            raise InputDimError(self._data.ndim)
+
         self.data = self._convert_array(self._data)
         if self._weight is not None:
+
+            # input check
+            if self._weight.shape != self._data.shape:
+                raise InputShapeError()
+
             self.weight = self._convert_array(self._weight)
         else:
             self.weight = self._weight
@@ -139,7 +148,7 @@ class CubeFitterLM(CubeFitter):
         else:
             sp_weight = None
         
-        # start fitting            
+        # start fitting    
         m = self.model()
         params = m.guess(sp, self.x)
         res = m.fit(sp, params, x=self.x, weights=sp_weight)
