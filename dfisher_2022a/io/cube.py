@@ -6,6 +6,7 @@ import numpy.ma as ma
 
 from mpdaf.obj import Cube
 from .line import Line
+from ..exceptions import EmptyRegionError
 
 class ProcessedCube():
     
@@ -71,10 +72,15 @@ class CubeRegion():
         wave_index = self.cube.wave.pixel(wavelength, nearest=nearest)
         return wave_index
 
+    # TODO: RAISE ERROR IF NO REGION IS SELECTED
     def _get_fit_region(self):
         low_idx = self._get_wave_index(self.low)
         high_idx = self._get_wave_index(self.high)
-        return self.cube[low_idx:high_idx,:,:]
+        
+        if low_idx == high_idx:
+            raise EmptyRegionError()
+
+        return self.cube[low_idx:high_idx+1,:,:]
 
     def _filter_snr(self, cube, threshold):
         snrmap = SNRMap(cube, threshold=threshold) #TODO: SEPARATE THE CREATION OF SNRMAP OBJECT AND USE IT

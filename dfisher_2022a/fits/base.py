@@ -70,9 +70,18 @@ class CubeFitterLM(CubeFitter):
         self.model = model
         self.method = fit_method
         self.result = None
+        self._input_data_check()
         self._prepare_data()
         self._create_result_container()
 
+    def _input_data_check(self):
+        if self._data.ndim != 3:
+            raise InputDimError(self._data.ndim)
+        if self._weight is not None and self._weight.shape != self._data.shape:
+            raise InputShapeError("Weight must be either None or of the same shape as data.")
+        if len(self.x) != self._data.shape[0]:
+            raise InputShapeError("The length of x must be equal to the length of the spectrum.")
+        
     def _convert_array(self, arr):
         arr = np.transpose(arr, axes=(1,2,0)).copy()
         axis_y, axis_x = arr.shape[0], arr.shape[1]
@@ -83,17 +92,8 @@ class CubeFitterLM(CubeFitter):
 
     def _prepare_data(self):
         """prepare data for parallel fitting"""
-        # input check
-        if self._data.ndim != 3:
-            raise InputDimError(self._data.ndim)
-
         self.data = self._convert_array(self._data)
         if self._weight is not None:
-
-            # input check
-            if self._weight.shape != self._data.shape:
-                raise InputShapeError()
-
             self.weight = self._convert_array(self._weight)
         else:
             self.weight = self._weight
