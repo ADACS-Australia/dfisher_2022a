@@ -17,7 +17,8 @@ lmfit = "^1.0.3"
 pandas = "^1.4.2"
 line-profiler = "^3.5.1"
 viztracer = "^0.15.2"
-memory-profiler = "^0.60.0"
+sympy = "^1.10.1"
+tables = "^3.7.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0"
@@ -26,6 +27,12 @@ ray = "^1.12.0"
 py-spy = "^0.3.12"
 black = "^22.3.0"
 isort = "^5.10.1"
+graphviz = "^0.20"
+memory-profiler = "^0.60.0"
+snakeviz = "^2.1.1"
+gprof2dot = "^2021.2.21"
+jupyter-contrib-nbextensions = "^0.5.1"
+pytest-cov = "^3.0.0"
 
 [tool.poetry.extras]
 docs = ["Sphinx", "sphinx-rtd-theme"]

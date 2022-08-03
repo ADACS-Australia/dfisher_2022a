@@ -55,5 +55,6 @@ _data
 .ipynb_checkpoints
 local
 ozstar
+static_analysis
 
 

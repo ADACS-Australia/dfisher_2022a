@@ -8,6 +8,7 @@ def _generate_line_dict(emission_lines):
     for attr in dir(emission_lines):
         if not attr.startswith("_"):
             line_dict[attr] = getattr(emission_lines,attr)
+    print("EmissionLines Dictionary has been created.")
     return line_dict
     
 from . import emission_lines

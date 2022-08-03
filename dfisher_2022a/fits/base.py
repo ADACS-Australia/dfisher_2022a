@@ -10,20 +10,24 @@ import os
 import threading
 import time
 import tracemalloc
+import math
+import pickle
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from multiprocessing import RawArray, sharedctypes
+from numpy.ma.core import MaskedArray
 
 import line_profiler
 import numpy as np
 import pandas as pd
 from viztracer import VizTracer, log_sparse
 
-from ..io.cube import FitReadyCube
+from ..io.cube import FitReadyCube, ProcessedCube
 from ..models import Lm_Const_1GaussModel, GaussianConstModelH
 from ..models.base import guess_1gauss
 from ..exceptions import InputDimError, InputShapeError
 from abc import ABC, abstractclassmethod, abstractmethod
+from types import MethodType
 
 # to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
 
@@ -33,6 +37,19 @@ ctx = mp.get_context('fork')
 # 
 
 
+# CPU COUNT
+CPU_COUNT = os.cpu_count()
+print(f"The number of cpus:{CPU_COUNT}")
+
+
+def _get_custom_attr(top, cls):
+    attr_names = dir(cls)
+    for name in attr_names:
+        attr = getattr(cls, name)
+        if not (name.startswith("_") or 
+        type(attr) is MethodType):
+            print(f"{name}: {attr}")
+            setattr(top, name, attr)
 
 
 
@@ -63,12 +80,25 @@ class CubeFitterLM(CubeFitter):
     'nfree', 'nvarys', 'redchi',
     'success']
 
-    def __init__(self, data, weight, x, model, fit_method):
+    # TODO: SOME OF THE INIT PARAMETERS ARE PARSED DIRECTLY FROM LMFIT MODEL.FIT
+    # CHECK WHETHER ALL OF THEM ARE NEEDED OR ALLOWED IN CUBE FIT
+    # SOME MAY SLOW DOWN THE PROCESS, OR PRODUCE INCONPATIBLE RESULTS
+    # WITH THE CURRENT RESULT HANDLING SETTING
+    def __init__(self, data, weight, x, model, fit_method='leastsq', 
+    iter_cb=None, scale_covar=True, verbose=False, fit_kws=None, 
+    nan_policy=None, calc_covar=True, max_nfev=None):
         self._data = data
         self._weight = weight
         self.x = x
         self.model = model
-        self.method = fit_method
+        self.fit_method = fit_method
+        self.iter_cb = iter_cb
+        self.scale_covar = scale_covar
+        self.verbose = verbose
+        self.fit_kws = fit_kws
+        self.nan_policy = nan_policy
+        self.calc_covar = calc_covar
+        self.max_nfev = max_nfev
         self.result = None
         self._input_data_check()
         self._prepare_data()
@@ -151,7 +181,10 @@ class CubeFitterLM(CubeFitter):
         # start fitting    
         m = self.model()
         params = m.guess(sp, self.x)
-        res = m.fit(sp, params, x=self.x, weights=sp_weight)
+        res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method,
+        iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
+        fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
+        max_nfev=self.max_nfev)
 
         # read fitting result
         out = self._read_fit_result(res)
@@ -163,8 +196,13 @@ class CubeFitterLM(CubeFitter):
         # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
         print("subprocess: ", name, " pixel: ", pix_id)
 
+    def _set_default_chunksize(self, ncpu):
+        return math.ceil(self.data.shape[0]/ncpu)
 
-    def fit_cube(self, nprocess=4, chunksize=10):
+    def fit_cube(self, nprocess=CPU_COUNT, chunksize=None):
+        if chunksize is None:
+            chunksize = self._set_default_chunksize(nprocess)
+
         datac = np.ctypeslib.as_ctypes(self.data)
         global shared_data
         shared_data = sharedctypes.RawArray(datac._type_, datac)
@@ -573,6 +611,84 @@ class FitCube():
 
 
         
+# class ResultBase():
+
+    
+#     def __init__(self):
+#         self._init_attr()
+
+#     def _init_attr(self):
+#         for attr in self._attr:
+#             setattr(self, attr, None)
+
+#     def write(self):
+#         """write out result to a file"""
+#         pass
+
+class ResultLM():
+    _cube_attr = ["z", "line", "snr_threshold", "snrmap"]
+    _fit_attr = ["fit_method", "result", "result_column"]
+    _default = ["success", "aic", "bic", "chisqr", "redchi"]
+
+    _save = ["data", "weight", "x"]
+
+    def __init__(self, path="./"):
+        self.path = path
+        self._create_output_dir()
+
+    def _create_output_dir(self):
+        """create the output directory; the default dir is the current dir"""
+        os.makedirs(self.path + "/out", exist_ok=True)
+
+    @property
+    def _flatsnr(self):
+        return self.snr.flatten()
+
+    def _create_result_df(self):
+        df = pd.DataFrame(self.result, columns=self.result_columns)
+        df['snr'] = self._flatsnr
+        return df
+
+    def _save_result(self, df):
+        store = pd.HDFStore(self.path + "/out/result.h5")
+        store.put("result", df)
+        store.close()
+
+    def _save_fit_input_data(self):
+        data_dir = self.path + "/out/fitdata/"
+        os.makedirs(data_dir, exist_ok=True)
+        for name in self._save:
+            val = getattr(self, name)
+            data_name = data_dir + name
+            if type(val) is MaskedArray:
+                np.save(data_name + "_data", val.data)
+                np.save(data_name + "_mask", val.mask)
+            else:
+                np.save(data_name, val)
+
+    # def _write_fit_summary(self):
+
+    def get_output(self, cls):
+        _get_custom_attr(self, cls)
+
+    def save(self, save_fitdata=True):
+        df = self._create_result_df()
+        self._save_result(df)
+        if save_fitdata:
+            self._save_fit_input_data()
+            
+
+        
+    
+
+
+    
+
+        
+
+
+        
+        
 
 
 
@@ -619,50 +735,50 @@ class FitResult():
 
     
 #NOTE: TO DELETE THE RESULTLM CLASS
-class ResultLM():
-    """fit result (fitter: lmfit)"""
+# class ResultLM():
+#     """fit result (fitter: lmfit)"""
     
-    _default = ["success", "aic", "bic", "chisqr", "redchi"]
-    _pars = []
-    col_dict = {}
+#     _default = ["success", "aic", "bic", "chisqr", "redchi"]
+#     _pars = []
+#     col_dict = {}
 
-    # TODO: allow user input list of output columns
-    def __init__(self, res, attr_list, param_name):
-        """res: ModelResult"""
-        self._get_default_columns(res)
+#     # TODO: allow user input list of output columns
+#     def __init__(self, res, attr_list, param_name):
+#         """res: ModelResult"""
+#         self._get_default_columns(res)
 
 
-        # self._get_out_array()
+#         # self._get_out_array()
 
-    def _get_par_info(self,res, params_name):
-        pars = res.params
-        vals = []
+#     def _get_par_info(self,res, params_name):
+#         pars = res.params
+#         vals = []
 
-        for name in params_name:
-            val = pars[name]
-            vals += [val.value, val.stderr]
-        # for key, val in pars.items():
-        #     self.col_dict[key] = val.value
-        #     self.col_dict[key+"_err"] = val.stderr
+#         for name in params_name:
+#             val = pars[name]
+#             vals += [val.value, val.stderr]
+#         # for key, val in pars.items():
+#         #     self.col_dict[key] = val.value
+#         #     self.col_dict[key+"_err"] = val.stderr
     
-    def _get_default_info(self, res, attr_list):
-        vals = []
-        for name in attr_list:           
-            val = getattr(res, name)
-            vals.append(val)
+#     def _get_default_info(self, res, attr_list):
+#         vals = []
+#         for name in attr_list:           
+#             val = getattr(res, name)
+#             vals.append(val)
 
-    def _get_default_columns(self, res):
-        self._get_default_info(res)
-        self._get_par_info(res)
-        self.columns = list(self.col_dict.keys())
+#     def _get_default_columns(self, res):
+#         self._get_default_info(res)
+#         self._get_par_info(res)
+#         self.columns = list(self.col_dict.keys())
 
-    def get_col_value(self):
-        return list(self.col_dict.values())
+#     def get_col_value(self):
+#         return list(self.col_dict.values())
         
 
-    def _validate_name(name, res):
-        """valid user input name"""
-        pass
+#     def _validate_name(name, res):
+#         """valid user input name"""
+#         pass
 
     
         
