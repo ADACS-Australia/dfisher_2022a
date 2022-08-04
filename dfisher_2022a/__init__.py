@@ -1,7 +1,5 @@
 # __version__ = '0.1.0'
 
-__all__ = ["fits", "models", "emission_lines", "cube", "line"]
-
 # generate line dictionary at runtime
 def _generate_line_dict(emission_lines):
     line_dict = {}
@@ -14,8 +12,12 @@ def _generate_line_dict(emission_lines):
 from . import emission_lines
 
 EmissionLines = _generate_line_dict(emission_lines)
-from . import fits, models
+# from . import fits, models
+# from .app import fit_lm
+# from .io import cube, line
+from .io import *
+from .fits import *
+from .models import *
 from .app import fit_lm
-from .io import cube, line
 
-del emission_lines
+# del emission_lines

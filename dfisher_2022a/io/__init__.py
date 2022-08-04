@@ -1,3 +1,3 @@
-from .cube import __all__
+from .cube import *
 from .line import *
 

@@ -1,10 +1,11 @@
-from .io.cube import ReadCubeFile, ProcessedCube, RestCube, CubeRegion, SNRMap
-from .io.line import Line
-from .fits.base import CubeFitterLM, ResultLM
-from .models.lmfit.composite import Const_1GaussModel
+import logging
+
 from lmfit import Model
 from mpdaf.obj import Cube
-import logging
+
+from .fits import CubeFitterLM, ResultLM
+from .io import CubeRegion, Line, ProcessedCube, ReadCubeFile, RestCube, SNRMap
+
 
 class FitInterface():
     def __init__(self, cubefile, varfile=None):

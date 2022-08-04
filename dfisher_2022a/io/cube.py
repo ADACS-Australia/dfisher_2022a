@@ -1,22 +1,12 @@
-__all__ = ["ReadCubeFile", "RestCube", "ProcessedCube", "SNRMap", "CubeRegion"]
-
-from turtle import left
 import numpy as np
 import numpy.ma as ma
-from types import MethodType
-
 from mpdaf.obj import Cube
-from .line import Line
-from ..exceptions import EmptyRegionError
 
-def _get_custom_attr(top, cls):
-    attr_names = dir(cls)
-    for name in attr_names:
-        attr = getattr(cls, name)
-        if not (name.startswith("_") or 
-        type(attr) is MethodType):
-            print(f"{name}: {attr}")
-            setattr(top, name, attr)
+from ..exceptions import EmptyRegionError
+from ..utils import get_custom_attr
+from .line import Line
+
+__all__ = ["ReadCubeFile", "ProcessedCube", "RestCube", "SNRMap", "CubeRegion"]
 
 class ReadCubeFile():
     """read in fits file and return Cube"""
@@ -66,20 +56,20 @@ class ProcessedCube():
             z = self.z
         rc = RestCube(self._cube, z=z) 
         print("type of self: ", type(self))
-        _get_custom_attr(self, rc)
+        get_custom_attr(self, rc)
         return rc
 
     def select_region(self, line: str, left=15, right=15):
         cr = CubeRegion(self.cube, line, left=left, right=right)
         cr.get_regional_cube()
-        _get_custom_attr(self, cr)
+        get_custom_attr(self, cr)
 
     def get_snrmap(self, snr_threshold=None):
         if snr_threshold is None:
             snr_threshold = self.snr_threshold
         sm = SNRMap(self.cube, snr_threshold=snr_threshold)
         sm.filter_cube()
-        _get_custom_attr(self, sm)
+        get_custom_attr(self, sm)
 
 
 
@@ -202,24 +192,6 @@ class PreFitCube():
         sp = cube[:,pix[0], pix[1]]
 
 
-# class RestCube():
-#     def __init__(self, cube, z=0.0):
-#         self.z = z
-#         self.restcube = None
-#         self._restwave = None
-#         self._de_redshift(cube)
-
-#     def _de_redshift(self, cube):
-#         obs_wav = cube.wave.get_crval()
-#         res_wav = obs_wav / (1 + self.z)
-#         # print("some waves: ", obs_wav, res_wav)
-#         self._restwave = res_wav
-#         # rcube = cube.clone()
-#         cube.wave.set_crval(res_wav)
-#         self.restcube = cube
-
-#     def refine_redshift(self):
-#         pass
 
 
    
