@@ -2,7 +2,8 @@
 import lmfit
 import numpy as np
 
-from ..base import constantH, gaussianH, guess_1gauss, guess_from_peak
+from ..base import (constantH, gaussianCH, gaussianH, guess_1gauss,
+                    guess_from_peak)
 
 
 def flux_expr(model):
@@ -146,6 +147,44 @@ class GaussianModelH(lmfit.Model):
 
 def _tmp():
     pass
+
+class GaussianConstModelH(lmfit.Model):
+    """Constant model, with a single Parameter: `c`.
+    Note that this is 'constant' in the sense of having no dependence on
+    the independent variable `x`, not in the sense of being non-varying.
+    To be clear, `c` will be a Parameter that will be varied in the fit
+    (by default, of course).
+    """
+    fwhm_factor = 2 * np.sqrt(2 * np.log(2))
+    """float: Factor used to create :func:`lmfit.models.fwhm_expr`."""
+    flux_factor = np.sqrt(2 * np.pi)
+    """float: Factor used to create :func:`flux_expr`."""
+
+    def __init__(self, independent_vars=['x'], prefix='', nan_policy='raise',
+                 **kwargs):
+        kwargs.update({'prefix': prefix, 'nan_policy': nan_policy,
+                       'independent_vars': independent_vars})
+
+        super().__init__(gaussianCH, **kwargs)
+        self._set_paramhints_prefix()
+
+    def _set_paramhints_prefix(self):
+        self.set_param_hint("sigma", min=0)
+        self.set_param_hint("height", min=0)
+        self.set_param_hint("fwhm", expr=lmfit.models.fwhm_expr(self))
+        self.set_param_hint("flux", expr=flux_expr(self))
+
+    guess = _guess_1gauss
+
+    # def guess(self, data, x=None, **kwargs):
+    #     """Estimate initial model parameter values from data."""
+    #     pars = self.make_params()
+
+    #     pars[f'{self.prefix}c'].set(value=data.mean())
+    #     return lmfit.models.update_param_vals(pars, self.prefix, **kwargs)
+
+    __init__.__doc__ = lmfit.models.COMMON_INIT_DOC
+    guess.__doc__ = lmfit.models.COMMON_GUESS_DOC
 
 class CompositeModel(lmfit.model.CompositeModel):
     def __init__(self, left, right, op, **kws):

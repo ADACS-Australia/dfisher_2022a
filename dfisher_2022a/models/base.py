@@ -14,6 +14,11 @@ def gaussianH(x, height=1.0, center=0.0, sigma=1.0):
     """
     return height * np.exp(-((1.0 * x - center) ** 2) / max(tiny, (2 * sigma ** 2)))
 
+#NOTE: create a function combined both 1-Gaussian and Constant
+def gaussianCH(x, height=1.0, center=0.0, sigma=1.0, c=0.0):
+
+    return height * np.exp(-((1.0 * x - center) ** 2) / max(tiny, (2 * sigma ** 2))) + c
+
 
 def guess_from_peak(y, x, negative=False):
     """Estimate starting values from 1D peak data and return (height,center,sigma).

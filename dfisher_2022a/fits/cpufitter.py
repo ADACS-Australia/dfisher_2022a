@@ -171,32 +171,6 @@ class CubeFitterLM(CubeFitter):
     def _set_default_chunksize(self, ncpu):
         return math.ceil(self.data.shape[0]/ncpu)
 
-    def fit_serial(self):
-        """"fit data cube serially"""
-        for i in range(self.data.shape[0]):
-            sp = self.data[i,:]
-            if self.weight is not None:
-                sp_weight = self.weight[i,:]
-            else:
-                sp_weight = None
-
-            
-            if sp.mask.all():
-                print("the spectrum is masked")
-                continue
-            else:
-                m = self.model()
-                params = m.guess(sp, self.x)
-                res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method,
-                iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
-                fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
-                max_nfev=self.max_nfev)
-
-                out = self._read_fit_result(res)
-                self.result[i,:] = out
-
-        
-
     def fit_cube(self, nprocess=CPU_COUNT, chunksize=None):
         """fit data cube parallelly"""
         if chunksize is None:
@@ -229,7 +203,30 @@ class CubeFitterLM(CubeFitter):
         current, peak = tracemalloc.get_traced_memory()
         print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
         tracemalloc.stop()
+    
+    def fit_serial(self):
+        """"fit data cube serially"""
+        for i in range(self.data.shape[0]):
+            sp = self.data[i,:]
+            if self.weight is not None:
+                sp_weight = self.weight[i,:]
+            else:
+                sp_weight = None
 
+            
+            if sp.mask.all():
+                print("the spectrum is masked")
+                continue
+            else:
+                m = self.model()
+                params = m.guess(sp, self.x)
+                res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method,
+                iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
+                fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
+                max_nfev=self.max_nfev)
+
+                out = self._read_fit_result(res)
+                self.result[i,:] = out
 
 class ResultLM():
     _cube_attr = ["z", "line", "snr_threshold", "snrmap"]
