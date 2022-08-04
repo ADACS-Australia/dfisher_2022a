@@ -56,5 +56,6 @@ _data
 local
 ozstar
 static_analysis
-
+design
+temp.py
 
