@@ -1,4 +1,4 @@
-__all__ = ["RestCube", "FitReadyCube", "ProcessedCube", "SNRMap", "CubeRegion"]
+__all__ = ["ReadCubeFile", "RestCube", "ProcessedCube", "SNRMap", "CubeRegion"]
 
 from turtle import left
 import numpy as np
@@ -18,6 +18,24 @@ def _get_custom_attr(top, cls):
             print(f"{name}: {attr}")
             setattr(top, name, attr)
 
+class ReadCubeFile():
+    """read in fits file and return Cube"""
+    def __init__(self, cubefile, varfile=None):
+        self.cubefile = cubefile
+        self.varfile = varfile
+
+    @property
+    def cube(self):
+        if self.varfile:
+            cube = Cube(self.cubefile, ext=self.ext[0])
+            varcube = Cube(self.varfile, ext=self.ext[1])
+            # varcube is loaded as masked array.
+            cube._var = varcube.data.data
+            # TODO: CHECK THE FOLLOWING
+            cube._mask |= varcube.mask
+        else:
+            cube = Cube(self.cubefile, ext=[1,2])
+        return cube
 
 class ProcessedCube():
     
@@ -26,7 +44,7 @@ class ProcessedCube():
         self.cube = cube.copy()
         self.z = z
         self.snr_threshold = snr_threshold
-    
+
     @property
     def data(self):
         return self.cube.data
@@ -112,12 +130,6 @@ class CubeRegion():
             raise EmptyRegionError()
         self.cube = self._cube[low_idx:high_idx+1,:,:]
         return self.cube
-    
-    # def _create_snr_map(self, cube, threshold):
-    #     snrmap = SNRMap(cube, threshold=threshold)
-    #     self.snrmap = snrmap
-    #     return snrmap
-
 
     def get_regional_cube(self):
         fcube = self._get_fit_region()    
@@ -175,6 +187,7 @@ class SNRMap():
         snr_mask = self.snr.mask
         self.cube.mask = self.cube.mask + snr_mask
         return self.cube
+
 class PreFitCube():
 
     """fine-tune fit settings before fitting the cube"""
@@ -209,28 +222,7 @@ class PreFitCube():
 #         pass
 
 
-class FitReadyCube():
-    def __init__(self, restcube, line, snr_threshold=None):
-        self.snr_threshold = snr_threshold
-        self.line_index = self._get_wave_index(restcube, line.line)
-        self.low_index = self._get_wave_index(restcube, line.low)
-        self.high_index = self._get_wave_index(restcube, line.high)
-        self.cube = None
-        self._get_fitreadycube(restcube)
-
-    def _get_wave_index(self, restcube, wave, nearest=True):
-        wave_index = restcube.restcube.wave.pixel(wave, nearest=nearest)
-        return wave_index
-
-    def _get_fitreadycube(self, restcube):
-        subcube = restcube.restcube[self.low_index:self.high_index+1,:,:]
-
-        if self.snr_threshold:
-            self.snrmap = SNRMap(subcube, self.snr_threshold)
-            subcube = self.snrmap.snr_masked_cube
-
-        self.cube = subcube
-
+   
                 
    
     # TODO: raise warning when the proposed fitting region is shrinked (exceeds the edge of the data range)

@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from viztracer import VizTracer, log_sparse
 
-from ..io.cube import FitReadyCube, ProcessedCube
+from ..io.cube import ProcessedCube
 from ..models import Lm_Const_1GaussModel, GaussianConstModelH
 from ..models.base import guess_1gauss
 from ..exceptions import InputDimError, InputShapeError

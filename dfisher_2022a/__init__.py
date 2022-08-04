@@ -15,4 +15,7 @@ from . import emission_lines
 
 EmissionLines = _generate_line_dict(emission_lines)
 from . import fits, models
+from .app import fit_lm
 from .io import cube, line
+
+del emission_lines
