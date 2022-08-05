@@ -10,6 +10,8 @@ import tracemalloc
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
 from multiprocessing import RawArray, sharedctypes
+from multiprocessing import shared_memory
+from multiprocessing.managers import SharedMemoryManager
 
 import numpy as np
 import pandas as pd
@@ -139,34 +141,65 @@ class CubeFitterLM(CubeFitter):
 
         return vals
     
-    def _fit_single_spaxel(self, pix_id: int):        
-        # shared memory
-        rresult = np.ctypeslib.as_array(shared_res_c)
-        rdata = np.ctypeslib.as_array(shared_data)
-        sp = rdata[pix_id,:]
-        if self.weight is not None:
-            rweight = np.ctypeslib.as_array(shared_weight)
-            sp_weight = rweight[pix_id,:]
-        else:
-            sp_weight = None
+    # def _fit_single_spaxel(self, pix_id: int):        
+    #     # shared memory
+    #     rresult = np.ctypeslib.as_array(shared_res_c)
+    #     rdata = np.ctypeslib.as_array(shared_data)
+    #     sp = rdata[pix_id,:]
+    #     if self.weight is not None:
+    #         rweight = np.ctypeslib.as_array(shared_weight)
+    #         sp_weight = rweight[pix_id,:]
+    #     else:
+    #         sp_weight = None
         
-        # start fitting    
-        m = self.model()
-        params = m.guess(sp, self.x)
-        res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method,
-        iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
-        fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
-        max_nfev=self.max_nfev)
+    #     # start fitting    
+    #     m = self.model()
+    #     params = m.guess(sp, self.x)
+    #     res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method,
+    #     iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
+    #     fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
+    #     max_nfev=self.max_nfev)
 
-        # read fitting result
-        out = self._read_fit_result(res)
-        rresult[pix_id,:] = out
+    #     # read fitting result
+    #     out = self._read_fit_result(res)
+    #     rresult[pix_id,:] = out
 
-        # temp: process information
-        name = os.getpid()
-        current, peak = tracemalloc.get_traced_memory()
-        # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-        print("subprocess: ", name, " pixel: ", pix_id)
+    #     # temp: process information
+    #     name = os.getpid()
+    #     current, peak = tracemalloc.get_traced_memory()
+    #     # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+    #     print("subprocess: ", name, " pixel: ", pix_id)
+
+    def _fit_single_spaxel(self, data: np.ndarray, weight: np.ndarray or None, 
+                            mask: np.ndarray, x: np.ndarray, 
+                            resm: shared_memory.SharedMemory, pix_id: int):        
+        if not mask[pix_id].all():
+            print("enter")
+            inx = np.where(~mask[pix_id])
+            sp = data[pix_id][inx]
+            sp_x = x[inx]
+            sp_weight = None
+            if weight is not None:
+                sp_sweight = weight[pix_id][inx]
+    
+            # start fitting    
+            m = self.model()
+            params = m.guess(sp, sp_x)
+            res = m.fit(sp, params, x=sp_x, weights=sp_weight, method=self.fit_method,
+            iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
+            fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
+            max_nfev=self.max_nfev)
+
+            # read fitting result
+            result = np.ndarray(self.result.shape, self.result.dtype, buffer=resm.buf)
+            out = self._read_fit_result(res)
+            result[pix_id,:] = out
+
+            # # temp: process information
+            name = os.getpid()
+            # current, peak = tracemalloc.get_traced_memory()
+            # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+            print("subprocess: ", name, " pixel: ", pix_id)
 
     def _set_default_chunksize(self, ncpu):
         return math.ceil(self.data.shape[0]/ncpu)
@@ -176,33 +209,70 @@ class CubeFitterLM(CubeFitter):
         if chunksize is None:
             chunksize = self._set_default_chunksize(nprocess)
 
-        datac = np.ctypeslib.as_ctypes(self.data)
-        global shared_data
-        shared_data = sharedctypes.RawArray(datac._type_, datac)
+        with SharedMemoryManager() as smm:
+            print("put in shared memory")
+            shm_dd = smm.SharedMemory(size=self.data.nbytes)
+            shm_dm = smm.SharedMemory(size=self.data.mask.nbytes)
+            shm_x = smm.SharedMemory(size=self.x.nbytes)
+            shm_r = smm.SharedMemory(size=self.result.nbytes)
+            sdd = np.ndarray(self.data.data.shape, dtype=self.data.data.dtype, buffer=shm_dd.buf)
+            sdd[:] = self.data.data[:]
+            sdm = np.ndarray(self.data.mask.shape, dtype=self.data.mask.dtype, buffer=shm_dm.buf)
+            sdm[:] = self.data.mask[:]
+            sx = np.ndarray(self.x.shape, dtype=self.x.dtype, buffer=shm_x.buf)
+            sx[:] = self.x[:]
+            sr = np.ndarray(self.result.shape, dtype=self.result.dtype, buffer=shm_r.buf)
+            sr[:] = self.result[:]
+            # print("result before fitting: ", sr)
+            
+            sw = None
+            if self.weight is not None:
+                shm_wd = smm.SharedMemory(size=self.weight.nbytes)
+                sw = np.ndarray(self.weight.shape, dtype=self.weight.dtype, buffer=shm_wd.buf)
+                sw[:] = self.weight.data[:]
+        
+            
+            pool = mp.Pool(processes=nprocess)
+            npix = self.result.shape[0]
+            print("start pooling")
+            pool.map(partial(self._fit_single_spaxel, sdd, sw, sdm, sx, shm_r), range(npix), chunksize=chunksize)
+            print("finish pooling")
+            # print("result after fitting: ", sr)
+        self.result[:] = sr[:]
+        
 
-        if self.weight is not None:
-            weightc = np.ctypeslib.as_ctypes(self.weight)
-            global shared_weight
-            shared_weight = sharedctypes.RawArray(weightc._type_, weightc)
+    # def fit_cube(self, nprocess=CPU_COUNT, chunksize=None):
+    #     """fit data cube parallelly"""
+    #     if chunksize is None:
+    #         chunksize = self._set_default_chunksize(nprocess)
 
-        resc = np.ctypeslib.as_ctypes(self.result)
-        global shared_res_c
-        shared_res_c = mp.sharedctypes.RawArray(resc._type_, resc)
+    #     datac = np.ctypeslib.as_ctypes(self.data)
+    #     global shared_data
+    #     shared_data = sharedctypes.RawArray(datac._type_, datac)
 
-        # ctx = get_context('fork')
-        npix = self.result.shape[0]
-        p = ctx.Pool(processes=nprocess)
-        print("start pooling")
-        p.map(self._fit_single_spaxel, list(range(npix)), chunksize=chunksize)
-        print("finish pooling")
+    #     if self.weight is not None:
+    #         weightc = np.ctypeslib.as_ctypes(self.weight)
+    #         global shared_weight
+    #         shared_weight = sharedctypes.RawArray(weightc._type_, weightc)
 
-        res = np.ctypeslib.as_array(shared_res_c)
-        self.result = res
+    #     resc = np.ctypeslib.as_ctypes(self.result)
+    #     global shared_res_c
+    #     shared_res_c = mp.sharedctypes.RawArray(resc._type_, resc)
 
-        # temp print
-        current, peak = tracemalloc.get_traced_memory()
-        print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-        tracemalloc.stop()
+    #     # ctx = get_context('fork')
+    #     npix = self.result.shape[0]
+    #     p = ctx.Pool(processes=nprocess)
+    #     print("start pooling")
+    #     p.map(self._fit_single_spaxel, list(range(npix)), chunksize=chunksize)
+    #     print("finish pooling")
+
+    #     res = np.ctypeslib.as_array(shared_res_c)
+    #     self.result = res
+
+    #     # temp print
+    #     current, peak = tracemalloc.get_traced_memory()
+    #     print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
+    #     tracemalloc.stop()
     
     def fit_serial(self):
         """"fit data cube serially"""
