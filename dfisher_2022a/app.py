@@ -4,7 +4,7 @@ from lmfit import Model
 from mpdaf.obj import Cube
 
 from .fits import CubeFitterLM, ResultLM
-from .io import CubeRegion, Line, ProcessedCube, ReadCubeFile, RestCube, SNRMap
+from . import CubeRegion, Line, ProcessedCube, ReadCubeFile, RestCube, SNRMap
 
 
 class FitInterface():
