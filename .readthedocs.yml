@@ -13,17 +13,7 @@ python:
       extra_requirements:
         - docs
 
-# Set the version of Python and other tools you might need
 build:
-  os: ubuntu-20.04
-  tools: {python: "3.8"}
   jobs:
-    pre_create_environment:
-      - asdf plugin add poetry
-      - asdf install poetry latest
-      - asdf global poetry latest
-      - poetry config virtualenvs.create false
     post_install:
-      - poetry install
       - sphinx-apidoc -o docs -t docs/_templates -T --extensions sphinx.ext.doctest,sphinx.ext.mathjax,sphinx.ext.autosectionlabel,myst_parser,sphinx.ext.todo -d 3 -E -f -F python/dfisher_2022a
-
