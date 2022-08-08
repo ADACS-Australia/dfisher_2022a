@@ -51,3 +51,10 @@ _build
 #Miscillaneous
 .install*
 *.old
+_data
+.ipynb_checkpoints
+local
+ozstar
+static_analysis
+.coverage
+
