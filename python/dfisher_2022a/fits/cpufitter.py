@@ -48,6 +48,7 @@ print(f"The number of cpus:{CPU_COUNT}")
 class CubeFitterLM(CubeFitter):
     """use lmfit as fitter (CPU fitter)"""
 
+    _indices = ['image_y', 'image_x']
     _lmfit_result_default = [
     'aic', 'bic', 'chisqr',
     'ndata', 'nfev',
@@ -85,9 +86,19 @@ class CubeFitterLM(CubeFitter):
             raise InputShapeError("Weight must be either None or of the same shape as data.")
         if len(self.x) != self._data.shape[0]:
             raise InputShapeError("The length of x must be equal to the length of the spectrum.")
-        
+
+    def _get_xy_indices(self):
+        """according to mpdaf, the cube data maps to (wavelength,image_y,image_x)."""
+        y, x = self._data.shape[1], self._data.shape[2]
+
+        indices = np.zeros((y*x, 2))
+        for i in range(y):
+            for j in range(x):
+                indices[i*x+j] = [i,j]
+        return indices
+
     def _convert_array(self, arr):
-        arr = np.transpose(arr, axes=(1,2,0)).copy()
+        arr = np.transpose(arr, axes=(1,2,0)).copy(order="C")
         axis_y, axis_x = arr.shape[0], arr.shape[1]
         axis_d = arr.shape[2]
         pix = axis_y * axis_x
@@ -117,7 +128,7 @@ class CubeFitterLM(CubeFitter):
         _pars_col = []
         for p in _pars_name:
             _pars_col += [p, p+"_err"]
-        self.result_columns = self._lmfit_result_default + _pars_col
+        self.result_columns = self._indices + self._lmfit_result_default + _pars_col
         
     def _create_result_container(self):
         """create result array with nan value"""
@@ -125,6 +136,11 @@ class CubeFitterLM(CubeFitter):
         n_cols = len(self.result_columns)
         result = np.zeros((self.data.shape[0], n_cols))
         result[:] = np.nan
+
+        # get pixel indices
+        indices = self._get_xy_indices()
+        result[:,:2] = indices
+        print(result)
         self.result = result
 
     def _read_fit_result(self, res):
@@ -193,7 +209,7 @@ class CubeFitterLM(CubeFitter):
             # read fitting result
             result = np.ndarray(self.result.shape, self.result.dtype, buffer=resm.buf)
             out = self._read_fit_result(res)
-            result[pix_id,:] = out
+            result[pix_id, 2:] = out
 
             # # temp: process information
             name = os.getpid()
@@ -324,7 +340,10 @@ class ResultLM():
 
     def _save_result(self, df):
         store = pd.HDFStore(self.path + "/out/result.h5")
-        store.put("result", df)
+        lname = self.line.name
+        mname = self.model.__name__
+        rname = lname+"_"+mname
+        store.put(rname, df)
         store.close()
 
     def _save_fit_input_data(self):
