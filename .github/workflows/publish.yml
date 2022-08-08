@@ -54,7 +54,7 @@ jobs:
     - name: Code tests
       run: |
         source .venv/bin/activate
-        pytest tests/
+        pytest 
 
     - name: Documentation build test
       run: |
