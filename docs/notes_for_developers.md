@@ -12,7 +12,7 @@ Releases are generated through the GitHub UI.  A GitHub workflow has been config
 
 * Run the tests for the project
 * Ensure that the project builds
-* Publish a new version of the code on [PyPI]().
+* Publish a new version of the code on [PyPI](https://pypi.org/).
 * Rebuild the documentation on *Read the Docs*
 
 To generate a new release, do the following:

@@ -14,7 +14,7 @@ Sphinx = { version = "4.2.0", optional = true }
 sphinx-rtd-theme = { version = "1.0.0", optional = true }
 numpy = "^1.8"
 astropy = "^5.0.4"
-scipy = "1.7.0"
+scipy = "1.9.0"
 mpdaf = "^3.5"
 lmfit = "^1.0.3"
 pandas = "^1.4.2"
@@ -36,6 +36,7 @@ snakeviz = "^2.1.1"
 gprof2dot = "^2021.2.21"
 jupyter-contrib-nbextensions = "^0.5.1"
 pytest-cov = "^3.0.0"
+myst-parser = "^0.18.0"
 
 [tool.poetry.extras]
 docs = ["Sphinx", "sphinx-rtd-theme"]
