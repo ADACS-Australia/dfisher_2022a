@@ -5,7 +5,7 @@ description = "Spectral analysis code created for the delivery of the DFisher_20
 authors = ["J. Hu <jitinghu@swin.edu.au>", "Gregory Poole <gbpoole@gmail.com>"]
 license = "MIT-expat"
 packages = [
-    { include = "dfisher_2022a" }
+    { include = "dfisher_2022a", from = "python" }
 ]
 
 [tool.poetry.dependencies]
