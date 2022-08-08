@@ -53,9 +53,7 @@ _build
 *.old
 .ipynb_checkpoints
 local
-ozstar
-static_analysis
-design
+htmlcov
 .coverage
 
 
