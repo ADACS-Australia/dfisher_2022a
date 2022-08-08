@@ -59,21 +59,14 @@ class CubeFitterLM(CubeFitter):
     # CHECK WHETHER ALL OF THEM ARE NEEDED OR ALLOWED IN CUBE FIT
     # SOME MAY SLOW DOWN THE PROCESS, OR PRODUCE INCONPATIBLE RESULTS
     # WITH THE CURRENT RESULT HANDLING SETTING
-    def __init__(self, data, weight, x, model, fit_method='leastsq', 
-    iter_cb=None, scale_covar=True, verbose=False, fit_kws=None, 
-    nan_policy=None, calc_covar=True, max_nfev=None):
+    def __init__(self, data, weight, x, model, method='leastsq', **kwargs):
+        """**kwargs: refer to lmfit.model.fit"""
         self._data = data
         self._weight = weight
         self.x = x
         self.model = model
-        self.fit_method = fit_method
-        self.iter_cb = iter_cb
-        self.scale_covar = scale_covar
-        self.verbose = verbose
-        self.fit_kws = fit_kws
-        self.nan_policy = nan_policy
-        self.calc_covar = calc_covar
-        self.max_nfev = max_nfev
+        self.fit_method = method
+        self.opts = kwargs
         self.result = None
         self._input_data_check()
         self._prepare_data()
@@ -201,10 +194,7 @@ class CubeFitterLM(CubeFitter):
             # start fitting    
             m = self.model()
             params = m.guess(sp, sp_x)
-            res = m.fit(sp, params, x=sp_x, weights=sp_weight, method=self.fit_method,
-            iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
-            fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
-            max_nfev=self.max_nfev)
+            res = m.fit(sp, params, x=sp_x, weights=sp_weight, method=self.fit_method, **self.opts)
 
             # read fitting result
             result = np.ndarray(self.result.shape, self.result.dtype, buffer=resm.buf)
