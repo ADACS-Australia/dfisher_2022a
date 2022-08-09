@@ -24,9 +24,10 @@ sphinx-rtd-theme = { version = "1.0.0", optional = true }
 numpy = "^1.8"
 astropy = "^5.0.4"
 mpdaf = "^3.5"
-lmfit = "^1.0.3"
 pandas = "^1.4.2"
 tables = "^3.7.0"
+lmfit = {git = "https://github.com/ADACS-Australia/light-lmfit-py.git", branch = "light"}
+tqdm = "^4.64.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.0"
@@ -43,6 +44,7 @@ gprof2dot = "^2021.2.21"
 ipykernel = "^6.13.0"
 jupyter-contrib-nbextensions = "^0.5.1"
 myst-parser = "^0.18.0"
+sphinx-rtd-theme = "^1.0.0"
 
 [tool.poetry.extras]
 docs = ["Sphinx", "sphinx-rtd-theme"]

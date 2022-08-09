@@ -1,14 +1,16 @@
 __all__ = ["ReadCubeFile", "ProcessedCube", "RestCube", "SNRMap", "CubeRegion"]
 
+import logging
+
 import numpy as np
 import numpy.ma as ma
 from mpdaf.obj import Cube
 
 from .exceptions import EmptyRegionError
-from .utils import get_custom_attr
 from .line import Line
+from .utils import get_custom_attr
 
-
+logger = logging.getLogger(__name__)
 class ReadCubeFile():
     """read in fits file and return Cube"""
     def __init__(self, cubefile, varfile=None):
@@ -56,7 +58,6 @@ class ProcessedCube():
         if z is None:
             z = self.z
         rc = RestCube(self._cube, z=z) 
-        print("type of self: ", type(self))
         get_custom_attr(self, rc)
         return rc
 
@@ -71,14 +72,6 @@ class ProcessedCube():
         sm = SNRMap(self.cube, snr_threshold=snr_threshold)
         sm.filter_cube()
         get_custom_attr(self, sm)
-
-
-
-
-    # TODO: CHECK HOW THIS IS DONE IN THREADCOUNT
-    # def refine_redshift(self):
-    #     """allow user to refine redshift"""
-    #     pass
 
 class RestCube():
     """class responds for de-reshifting data cube"""
@@ -161,16 +154,17 @@ class SNRMap():
         """count the number of masked pixels and the percentage of the total pixel"""
         n_masked = np.sum(snr.mask)
         masked_percentage = n_masked/snr.size
-        print(n_masked, masked_percentage)
+        logger.critical(f"Number of masked pixels in SNR map: {n_masked} ({masked_percentage*100:.2f}%)")
 
     def _get_snr_stats(self, snr):
         """get statistics of snr"""
         median = ma.median(snr)
         mean = ma.mean(snr)
-        avg = ma.average(snr)
         min_snr, max_snr = ma.min(snr), ma.max(snr)
-        print(median, mean, avg, min_snr, max_snr)
-
+        logger.critical(f"Median SNR: {median:.2f}")
+        logger.critical(f"Mean SNR: {mean:.2f}")
+        logger.critical(f"Min and SNR: {min_snr:.2f} {max_snr:.2f}")
+    
     def filter_cube(self):
         """filter cube by snr threshold"""
         snr_mask = self.snr.mask
