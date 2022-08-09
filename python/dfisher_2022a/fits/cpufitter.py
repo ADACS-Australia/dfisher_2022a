@@ -16,7 +16,6 @@ from multiprocessing.managers import SharedMemoryManager
 import numpy as np
 import pandas as pd
 from numpy.ma.core import MaskedArray
-from sympy import N
 from viztracer import VizTracer, log_sparse
 
 from ..exceptions import InputDimError, InputShapeError
