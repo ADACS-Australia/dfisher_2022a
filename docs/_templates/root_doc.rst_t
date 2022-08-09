@@ -1,13 +1,15 @@
 .. include:: ../README.md
    :parser: myst_parser.sphinx_
+   
 
 Table of Contents
 =================
 .. toctree::
    :maxdepth: 3
 
+   README
    notes_for_developers
-   {{ project }}
+#   {{ project }}
 
 Index
 =====
