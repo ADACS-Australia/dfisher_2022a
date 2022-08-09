@@ -1,4 +1,5 @@
 import logging
+import os
 
 from lmfit import Model
 from mpdaf.obj import Cube
@@ -8,6 +9,9 @@ from .fits.cpufitter import CubeFitterLM, ResultLM
 from .line import Line
 
 logger = logging.getLogger(__name__)
+
+# CPU COUNT
+CPU_COUNT = os.cpu_count()
 class FitInterface():
     def __init__(self, cubefile, varfile=None):
         self.cubefile = cubefile
@@ -32,7 +36,7 @@ def prepare_data(cube: Cube, line: str, z=0., left=15, right=15, snr_threshold=N
     return p
 
 def fit_lm(cubefile, line: str, model: Model, varfile=None, z=0.,
-            left=15, right=15, snr_threshold=None, fit_method="leastsq", mode="parallel", **kwargs):
+            left=15, right=15, snr_threshold=None, nprocess=CPU_COUNT, fit_method="leastsq", mode="parallel", **kwargs):
     out = ResultLM()
     setattr(out,"CubeFile", cubefile)
     setattr(out, "VarFile", varfile)
@@ -44,7 +48,7 @@ def fit_lm(cubefile, line: str, model: Model, varfile=None, z=0.,
     out.get_output(p)
 
     logger.info("Start fitting data")
-    fr = CubeFitterLM(p.data, p.weight, p.x, model, method=fit_method, **kwargs)
+    fr = CubeFitterLM(p.data, p.weight, p.x, model, nprocess=nprocess, method=fit_method, **kwargs)
     if mode == "parallel":
         fr.fit_cube()
     if mode == "serial":

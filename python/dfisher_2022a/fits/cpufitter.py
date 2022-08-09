@@ -39,12 +39,13 @@ class CubeFitterLM(CubeFitter):
     'nfree', 'nvarys', 'redchi',
     'success']
 
-    def __init__(self, data, weight, x, model, method='leastsq', **kwargs):
+    def __init__(self, data, weight, x, model, nprocess=CPU_COUNT, method='leastsq', **kwargs):
         """**kwargs: refer to lmfit.model.fit"""
         self._data = data
         self._weight = weight
         self.x = x
         self.model = model
+        self.nprocess = nprocess
         self.fit_method = method
         self.opts = kwargs
         self.result = None
@@ -157,8 +158,10 @@ class CubeFitterLM(CubeFitter):
     def _set_default_chunksize(self, ncpu):
         return math.ceil(self.data.shape[0]/ncpu)
 
-    def fit_cube(self, nprocess=CPU_COUNT, chunksize=None):
+    def fit_cube(self, nprocess=None, chunksize=None):
         """Fit data cube parallelly"""
+        if nprocess is None:
+            nprocess = self.nprocess
         if chunksize is None:
             chunksize = self._set_default_chunksize(nprocess)
 
