@@ -1,49 +1,34 @@
 __all__ = ["CubeFitterLM", "ResultLM"]
 
-import itertools
+import logging
 import math
 import multiprocessing as mp
 import os
-import threading
-import time
-import tracemalloc
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from functools import partial
-from multiprocessing import RawArray, sharedctypes
 from multiprocessing import shared_memory
 from multiprocessing.managers import SharedMemoryManager
 
 import numpy as np
 import pandas as pd
 from numpy.ma.core import MaskedArray
-from viztracer import VizTracer, log_sparse
+from tqdm import tqdm
 
 from ..exceptions import InputDimError, InputShapeError
 from ..utils import get_custom_attr
 from .base import CubeFitter
 
+logger = logging.getLogger(__name__)
+
 # to inheritate from parent process (shared object), it looks like we should use fork, instead of spawn
-
-
-
 ctx = mp.get_context('fork')
-# 
-
 
 # CPU COUNT
 CPU_COUNT = os.cpu_count()
-print(f"The number of cpus:{CPU_COUNT}")
-
-
-
-
+logger.info(f"The number of cpus: {CPU_COUNT}")
 
 
 #TODO: write new error class for fitting spaxel (reference: fc mpdaf_ext)
-
-
-
-
 class CubeFitterLM(CubeFitter):
     """use lmfit as fitter (CPU fitter)"""
 
@@ -54,10 +39,6 @@ class CubeFitterLM(CubeFitter):
     'nfree', 'nvarys', 'redchi',
     'success']
 
-    # TODO: SOME OF THE INIT PARAMETERS ARE PARSED DIRECTLY FROM LMFIT MODEL.FIT
-    # CHECK WHETHER ALL OF THEM ARE NEEDED OR ALLOWED IN CUBE FIT
-    # SOME MAY SLOW DOWN THE PROCESS, OR PRODUCE INCONPATIBLE RESULTS
-    # WITH THE CURRENT RESULT HANDLING SETTING
     def __init__(self, data, weight, x, model, method='leastsq', **kwargs):
         """**kwargs: refer to lmfit.model.fit"""
         self._data = data
@@ -132,7 +113,6 @@ class CubeFitterLM(CubeFitter):
         # get pixel indices
         indices = self._get_xy_indices()
         result[:,:2] = indices
-        print(result)
         self.result = result
 
     def _read_fit_result(self, res):
@@ -148,41 +128,11 @@ class CubeFitterLM(CubeFitter):
             vals += [val.value, val.stderr]
 
         return vals
-    
-    # def _fit_single_spaxel(self, pix_id: int):        
-    #     # shared memory
-    #     rresult = np.ctypeslib.as_array(shared_res_c)
-    #     rdata = np.ctypeslib.as_array(shared_data)
-    #     sp = rdata[pix_id,:]
-    #     if self.weight is not None:
-    #         rweight = np.ctypeslib.as_array(shared_weight)
-    #         sp_weight = rweight[pix_id,:]
-    #     else:
-    #         sp_weight = None
         
-    #     # start fitting    
-    #     m = self.model()
-    #     params = m.guess(sp, self.x)
-    #     res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method,
-    #     iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
-    #     fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
-    #     max_nfev=self.max_nfev)
-
-    #     # read fitting result
-    #     out = self._read_fit_result(res)
-    #     rresult[pix_id,:] = out
-
-    #     # temp: process information
-    #     name = os.getpid()
-    #     current, peak = tracemalloc.get_traced_memory()
-    #     # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-    #     print("subprocess: ", name, " pixel: ", pix_id)
-
     def _fit_single_spaxel(self, data: np.ndarray, weight: np.ndarray or None, 
                             mask: np.ndarray, x: np.ndarray, 
                             resm: shared_memory.SharedMemory, pix_id: int):        
         if not mask[pix_id].all():
-            print("enter")
             inx = np.where(~mask[pix_id])
             sp = data[pix_id][inx]
             sp_x = x[inx]
@@ -200,22 +150,24 @@ class CubeFitterLM(CubeFitter):
             out = self._read_fit_result(res)
             result[pix_id, 2:] = out
 
-            # # temp: process information
+            # display fitting process
             name = os.getpid()
-            # current, peak = tracemalloc.get_traced_memory()
-            # print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-            print("subprocess: ", name, " pixel: ", pix_id)
-
+            logger.info(f"subprocess: {name}; pixel: {pix_id}")
+              
     def _set_default_chunksize(self, ncpu):
         return math.ceil(self.data.shape[0]/ncpu)
 
     def fit_cube(self, nprocess=CPU_COUNT, chunksize=None):
-        """fit data cube parallelly"""
+        """Fit data cube parallelly"""
         if chunksize is None:
             chunksize = self._set_default_chunksize(nprocess)
 
+        # initialize result
+        self.result[:,2:] = np.nan
+        
+
         with SharedMemoryManager() as smm:
-            print("put in shared memory")
+            logger.debug("Put data into shared memory")
             shm_dd = smm.SharedMemory(size=self.data.nbytes)
             shm_dm = smm.SharedMemory(size=self.data.mask.nbytes)
             shm_x = smm.SharedMemory(size=self.x.nbytes)
@@ -228,80 +180,48 @@ class CubeFitterLM(CubeFitter):
             sx[:] = self.x[:]
             sr = np.ndarray(self.result.shape, dtype=self.result.dtype, buffer=shm_r.buf)
             sr[:] = self.result[:]
-            # print("result before fitting: ", sr)
             
             sw = None
             if self.weight is not None:
                 shm_wd = smm.SharedMemory(size=self.weight.nbytes)
                 sw = np.ndarray(self.weight.shape, dtype=self.weight.dtype, buffer=shm_wd.buf)
                 sw[:] = self.weight.data[:]
-        
-            
-            pool = mp.Pool(processes=nprocess)
+
+            pool = ctx.Pool(processes=nprocess)
             npix = self.result.shape[0]
-            print("start pooling")
+           
+            logger.info("Start pooling ...")
             pool.map(partial(self._fit_single_spaxel, sdd, sw, sdm, sx, shm_r), range(npix), chunksize=chunksize)
-            print("finish pooling")
-            # print("result after fitting: ", sr)
+            logger.info("Finish pooling.")
+
         self.result[:] = sr[:]
-        
-
-    # def fit_cube(self, nprocess=CPU_COUNT, chunksize=None):
-    #     """fit data cube parallelly"""
-    #     if chunksize is None:
-    #         chunksize = self._set_default_chunksize(nprocess)
-
-    #     datac = np.ctypeslib.as_ctypes(self.data)
-    #     global shared_data
-    #     shared_data = sharedctypes.RawArray(datac._type_, datac)
-
-    #     if self.weight is not None:
-    #         weightc = np.ctypeslib.as_ctypes(self.weight)
-    #         global shared_weight
-    #         shared_weight = sharedctypes.RawArray(weightc._type_, weightc)
-
-    #     resc = np.ctypeslib.as_ctypes(self.result)
-    #     global shared_res_c
-    #     shared_res_c = mp.sharedctypes.RawArray(resc._type_, resc)
-
-    #     # ctx = get_context('fork')
-    #     npix = self.result.shape[0]
-    #     p = ctx.Pool(processes=nprocess)
-    #     print("start pooling")
-    #     p.map(self._fit_single_spaxel, list(range(npix)), chunksize=chunksize)
-    #     print("finish pooling")
-
-    #     res = np.ctypeslib.as_array(shared_res_c)
-    #     self.result = res
-
-    #     # temp print
-    #     current, peak = tracemalloc.get_traced_memory()
-    #     print(f"Current memory usage {current/1e6}MB; Peak: {peak/1e6}MB")
-    #     tracemalloc.stop()
-    
+            
     def fit_serial(self):
-        """"fit data cube serially"""
-        for i in range(self.data.shape[0]):
+        """"Fit data cube serially"""
+        # initialize result 
+        self.result[:, 2:] = np.nan
+
+        # set progress bar
+        npix = self.data.shape[0]
+
+        logger.info("Fitting progress:")
+        pbar = tqdm(total=npix)
+    
+        # fitting iteration
+        for i in range(npix):
+            pbar.update(1)
             sp = self.data[i,:]
             if self.weight is not None:
                 sp_weight = self.weight[i,:]
             else:
                 sp_weight = None
-
             
-            if sp.mask.all():
-                print("the spectrum is masked")
-                continue
-            else:
+            if not sp.mask.all():
                 m = self.model()
                 params = m.guess(sp, self.x)
-                res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method,
-                iter_cb=self.iter_cb, scale_covar=self.scale_covar, verbose=self.verbose, 
-                fit_kws=self.fit_kws, nan_policy=self.nan_policy, calc_covar=self.calc_covar, 
-                max_nfev=self.max_nfev)
-
+                res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method, **self.opts)
                 out = self._read_fit_result(res)
-                self.result[i,:] = out
+                self.result[i,2:] = out
 
 class ResultLM():
     _cube_attr = ["z", "line", "snr_threshold", "snrmap"]
@@ -317,6 +237,7 @@ class ResultLM():
     def _create_output_dir(self):
         """create the output directory; the default dir is the current dir"""
         os.makedirs(self.path + "/out", exist_ok=True)
+        logger.debug("Create out directory.")
 
     @property
     def _flatsnr(self):
@@ -347,7 +268,8 @@ class ResultLM():
             else:
                 np.save(data_name, val)
 
-    # def _write_fit_summary(self):
+    def _write_fit_summary(self):
+        pass
 
     def get_output(self, cls):
         get_custom_attr(self, cls)
