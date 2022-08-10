@@ -13,7 +13,7 @@ This project is being developed in the course of delivering the DFisher_2022A AD
 #### Installing with pip
 
 ```
-pip install dfisher_2022a
+$python -m pip git+https://github.com/ADACS-Australia/dfisher_2022a.git#egg=dfisher_2022a
 ```
 
 ## Getting Started
@@ -51,7 +51,7 @@ Keywords `left` and `right` set the wavelength cuts around the given line on bot
 ```
 >>> model = dfisher_2022a.Lm_Const_1GaussModel
 ```
-A single Gaussian model is available within this package. Users can customize their own models following developer's note.
+A single Gaussian model is available within this package. Users can customize their own models following this note.
 
 5. Fit the cube
 ```
@@ -92,9 +92,9 @@ where `result.h5` stores the fitting result, and `fitdata/` contains processed d
 ```
 The line information is included in `emission_lines.py`. Users can customize this file (e.g. adding more lines or updating the wavelength) before importing this package. 
 
-9. A wraped approach
+9. A wrapped approach
 
-A wrapper function is available, which encapsulate steps 1-6.
+A wrapper function is available, which encapsulates steps 1-6.
 ```
 >>> from dfisher_2022a import fit_lm
 >>> model = dfisher_2022a.Lm_Const_1GaussModel
