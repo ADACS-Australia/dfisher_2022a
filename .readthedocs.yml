@@ -16,7 +16,7 @@ build:
       - $HOME/.poetry/bin/poetry install -E docs
 
     post_install:
-      - sphinx-apidoc -o docs -t docs/_templates -T --extensions sphinx.ext.doctest,sphinx.ext.mathjax,sphinx.ext.autosectionlabel,myst_parser,sphinx.ext.todo -d 3 -E -f -F python/dfisher_2022a
+      - make apidoc
 
 sphinx:
   configuration: docs/conf.py
