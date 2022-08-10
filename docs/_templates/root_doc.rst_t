@@ -1,15 +1,10 @@
-.. include:: ../README.md
-   :parser: myst_parser.sphinx_
-   
-
-Table of Contents
-=================
 .. toctree::
+   :hidden:
    :maxdepth: 3
 
-   README
+   readme_link
    notes_for_developers
-#   {{ project }}
+   {{ project }}
 
 Index
 =====
