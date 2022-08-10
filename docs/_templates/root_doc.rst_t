@@ -1,8 +1,11 @@
+{{ [project, "Documentation"] | join(" ")  }}
+{% for c in [project, "Documentation"] | join(" ") %}#{% endfor %}
+
 .. toctree::
-   :hidden:
+   :caption: Table of Contents
    :maxdepth: 3
 
-   readme_link
+   Overview <overview>
    notes_for_developers
    {{ project }}
 

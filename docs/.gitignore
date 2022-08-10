@@ -2,4 +2,4 @@ Makefile
 make.bat
 conf.py
 *.rst
-!readme_link.rst
+!overview.rst
