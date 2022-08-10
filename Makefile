@@ -24,7 +24,7 @@ help:
 clean:
 	@rm -rf build docs/_build
 	@rm docs/conf.py docs/make.bat docs/Makefile
-	@find docs/ -type f -name '*.rst' -not -name 'readme_link.rst' -delete
+	@find docs/ -type f -name '*.rst' -not -name 'overview.rst' -delete
 apidoc:
 	@sphinx-apidoc -o docs --doc-project ${PKG_PROJECT} --doc-author "${PKG_AUTHOR}" --doc-version ${PKG_VERSION} --doc-release ${PKG_RELEASE} -t docs/_templates -T --extensions sphinx.ext.doctest,sphinx.ext.mathjax,sphinx.ext.autosectionlabel,myst_parser,sphinx.ext.todo -d 3 -E -f -F python/${PKG_PROJECT}
 

@@ -1,4 +1,4 @@
-Dfisher_2022A Documentation
+Dfisher_2022A
 =============
 
 This project is being developed in the course of delivering the DFisher_2022A ADACS Merit Allocation Program project.
