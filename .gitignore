@@ -56,5 +56,5 @@ local
 htmlcov
 .coverage
 *.log
-
+*.bak
 

@@ -49,8 +49,11 @@ class Const_1GaussModel(lmfit.model.CompositeModel):
     guess = _guess_1gauss
 
     #NOTE: the following function replace the default eval function defined in lmfit to speed up 
-    def eval(self, nvars, **kwargs):
+    def eval_fast(self, nvars, **kwargs):
         # print("new eval: ", nvars)
         return self.com_func(kwargs['x'], *nvars)
+
+    # def _temp(self):
+    #     pass
 
     __init__.__doc__ = lmfit.models.COMMON_INIT_DOC
