@@ -30,8 +30,28 @@ logger.info(f"The number of cpus: {CPU_COUNT}")
 
 #TODO: write new error class for fitting spaxel (reference: fc mpdaf_ext)
 class CubeFitterLM(CubeFitter):
-    """use lmfit as fitter (CPU fitter)"""
+    """
+    Parameters
+    ----------
+    data : numpy.ma.MaskedArray
+        cube data; this array should be 3-d, and the ordering of its axes should be
+    (wavelength,image_y,image_x) (reference: mpdaf.obj.Cube.data)
+    weight : numpy.ma.MaskedArray
+        cube data weight; this array should be 3-d, and has the same ordering of axes as data.
+    x : numpy.array or list
+        cube wavelength
+    model : lmfit.CompositeModel
+    nprocess : int, optional
+        the number of worker processes used in parallel fitting, by default os.cpu_count()
+    method : str, optional
+        specifies the fitting method available in lmfit, by default 'leastsq'
+    kwargs : optional
+        other keyword arguments passed from lmfit.Model.fit
 
+    Notes
+    -----
+    If the light version of lmfit (https://github.com/ADACS-Australia/light-lmfit-py/tree/light) is used, method "fast_leastsq" is available.
+    """
     _indices = ['image_y', 'image_x']
     _lmfit_result_default = [
     'aic', 'bic', 'chisqr',
@@ -39,11 +59,34 @@ class CubeFitterLM(CubeFitter):
     'nfree', 'nvarys', 'redchi',
     'success']
 
-    def __init__(self, data, weight, x, model, nprocess=CPU_COUNT, method='leastsq', **kwargs):
-        """**kwargs: refer to lmfit.model.fit"""
+    def __init__(self, data, weight, x, model, nprocess=CPU_COUNT, method='leastsq', **kwargs):    
+        """
+        Cube fitter backed with lmfit.
+
+        Parameters
+        ----------
+        data : numpy.ma.MaskedArray
+            cube data; this array should be 3-d, and the ordering of its axes should be
+        (wavelength,image_y,image_x) (reference: mpdaf.obj.Cube.data)
+        weight : numpy.ma.MaskedArray
+            cube data weight; this array should be 3-d, and has the same ordering of axes as data.
+        x : numpy.array or list
+            cube wavelength
+        model : lmfit.CompositeModel
+        nprocess : int, optional
+            the number of worker processes used in parallel fitting, by default os.cpu_count()
+        method : str, optional
+            specifies the fitting method available in lmfit, by default 'leastsq'
+        kwargs : optional
+            other keyword arguments passed from lmfit.Model.fit
+
+        Notes
+        -----
+        If the light version of lmfit is used instead, method "fast_leastsq" is available.
+        """
         self._data = data
         self._weight = weight
-        self.x = x
+        self.x = x 
         self.model = model
         self.nprocess = nprocess
         self.fit_method = method
@@ -54,6 +97,7 @@ class CubeFitterLM(CubeFitter):
         self._create_result_container()
 
     def _input_data_check(self):
+        """Check input data dimension and shape."""
         if self._data.ndim != 3:
             raise InputDimError(self._data.ndim)
         if self._weight is not None and self._weight.shape != self._data.shape:
@@ -62,7 +106,7 @@ class CubeFitterLM(CubeFitter):
             raise InputShapeError("The length of x must be equal to the length of the spectrum.")
 
     def _get_xy_indices(self):
-        """according to mpdaf, the cube data maps to (wavelength,image_y,image_x)."""
+        """Get the pixel index (image_y, image_x) for each spaxel."""
         y, x = self._data.shape[1], self._data.shape[2]
 
         indices = np.zeros((y*x, 2))
@@ -72,6 +116,7 @@ class CubeFitterLM(CubeFitter):
         return indices
 
     def _convert_array(self, arr):
+        """Reshape the array."""
         arr = np.transpose(arr, axes=(1,2,0)).copy(order="C")
         axis_y, axis_x = arr.shape[0], arr.shape[1]
         axis_d = arr.shape[2]
@@ -80,7 +125,7 @@ class CubeFitterLM(CubeFitter):
         return arr
 
     def _prepare_data(self):
-        """prepare data for parallel fitting"""
+        """Prepare data for parallel fitting."""
         self.data = self._convert_array(self._data)
         if self._weight is not None:
             self.weight = self._convert_array(self._weight)
@@ -88,7 +133,7 @@ class CubeFitterLM(CubeFitter):
             self.weight = self._weight
 
     def _get_param_names(self):
-        """get the param names of the model"""
+        """Get the param names of the model."""
         m = self.model()
         _pars = m.make_params()
         _pars_name = list(_pars.valuesdict().keys())
@@ -97,7 +142,7 @@ class CubeFitterLM(CubeFitter):
         return _pars_name
 
     def _set_result_columns(self):
-        """set param columns: [name, err] for each param"""
+        """Set param columns: [name, name_err] for each param."""
         _pars_name = self._get_param_names()
         _pars_col = []
         for p in _pars_name:
@@ -105,7 +150,7 @@ class CubeFitterLM(CubeFitter):
         self.result_columns = self._indices + self._lmfit_result_default + _pars_col
         
     def _create_result_container(self):
-        """create result array with nan value"""
+        """Create result array filled with nan value."""
         self._set_result_columns()
         n_cols = len(self.result_columns)
         result = np.zeros((self.data.shape[0], n_cols))
@@ -159,7 +204,16 @@ class CubeFitterLM(CubeFitter):
         return math.ceil(self.data.shape[0]/ncpu)
 
     def fit_cube(self, nprocess=None, chunksize=None):
-        """Fit data cube parallelly"""
+        """
+        _summary_
+
+        Parameters
+        ----------
+        nprocess : _type_, optional
+            _description_, by default None
+        chunksize : _type_, optional
+            _description_, by default None
+        """
         if nprocess is None:
             nprocess = self.nprocess
         if chunksize is None:
