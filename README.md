@@ -1,4 +1,4 @@
-Dfisher_2022A
+Dfisher_2022A Documentation
 =============
 
 This project is being developed in the course of delivering the DFisher_2022A ADACS Merit Allocation Program project.
@@ -7,14 +7,18 @@ This project is being developed in the course of delivering the DFisher_2022A AD
 
 #### Pre-requirement:
 * python >=3.8 <3.10
-* HDF5 
-* C compiler
+* HDF5 >= 1.8.4 (>=1.8.15 is strongly recommended)
 
-#### Installing with pip
-
+#### Latest PyPI release 
 ```
-$python -m pip git+https://github.com/ADACS-Australia/dfisher_2022a.git#egg=dfisher_2022a
+$ pip install dfisher_2022a
 ```
+**Common troubleshooting**: If installation fails, try to upgrade `pip` by running `pip install --upgrade pip` first.
+#### Latest dev-version on GitHub
+```
+$ pip git+https://github.com/ADACS-Australia/dfisher_2022a.git#egg=dfisher_2022a
+```
+**NOTICE**: In the dev-version, a light version of `lmfit` (see [code](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)) is used. This version provides a fitting method, "fast_leastsq" in addition to other [fitting methods](https://lmfit.github.io/lmfit-py/fitting.html#choosing-different-fitting-methods) available in `lmfit(1.0.3)`. This method can speed up the fitting process by at least 30%. Check here for more details.
 
 ## Getting Started
 ##### Import the package
@@ -90,11 +94,11 @@ where `result.h5` stores the fitting result, and `fitdata/` contains processed d
 >>> dfisher_2022a.EmissionLines
 {'Halpha': 6562.819, 'Hb4861': 4861.333, 'Hdelta': 4101.742, ...
 ```
-The line information is included in `emission_lines.py`. Users can customize this file (e.g. adding more lines or updating the wavelength) before importing this package. 
+The line information is included in `emission_lines.py`. Users can customize this file (e.g. adding more lines or updating the wavelength) before importing this package.
 
 #### A wrapped approach
 
-A wrapper function is available, which encapsulates steps 1-6.
+A wrapper function encapsulating steps 1-6 is available:
 ```
 >>> from dfisher_2022a import fit_lm
 >>> model = dfisher_2022a.Lm_Const_1GaussModel
