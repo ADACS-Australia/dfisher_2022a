@@ -1,4 +1,7 @@
-# base models
+""" Base models used to construct lmfit composite models.
+The models are provided by the science team of DFisher_2022A project.
+The original code can be found at https://github.com/astrodee/threadcount/blob/master/src/threadcount/models.py
+"""
 import lmfit
 import numpy as np
 

@@ -1,4 +1,6 @@
-""" composite models
+""" Custom lmfit composite models.
+The models are provided by the science team of DFisher_2022A project.
+The original code can be found at https://github.com/astrodee/threadcount/blob/master/src/threadcount/models.py
 """
 import operator
 
@@ -37,7 +39,7 @@ class Const_1GaussModel(lmfit.model.CompositeModel):
         # the below lines gives g1 + c
         super().__init__(g1, c, operator.add)
         self._set_paramhints_prefix()
-        self.com_func = gaussianCH
+        self.com_func = gaussianCH      # model function of the composite model
 
     def _set_paramhints_prefix(self):
         # GaussianModelH paramhints already sets sigma min=0 and height min=0
@@ -48,12 +50,9 @@ class Const_1GaussModel(lmfit.model.CompositeModel):
 
     guess = _guess_1gauss
 
-    #NOTE: the following function replace the default eval function defined in lmfit to speed up 
+    #NOTE: the following function is used instead of `Model.eval` when `fast_leastsq` method is called
     def eval_fast(self, nvars, **kwargs):
-        # print("new eval: ", nvars)
         return self.com_func(kwargs['x'], *nvars)
 
-    # def _temp(self):
-    #     pass
 
     __init__.__doc__ = lmfit.models.COMMON_INIT_DOC

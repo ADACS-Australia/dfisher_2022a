@@ -1,4 +1,7 @@
-# generic functions
+""" Generic functions used for model construction.
+Some of the functions are provided by the science team of DFisher_2022A project.
+The original code can be found at https://github.com/astrodee/threadcount/blob/master/src/threadcount/models.py
+"""
 import numpy as np
 
 tiny = 1.e-15
