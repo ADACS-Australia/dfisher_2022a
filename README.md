@@ -18,7 +18,7 @@ $ pip install dfisher_2022a
 ```
 $ pip git+https://github.com/ADACS-Australia/dfisher_2022a.git#egg=dfisher_2022a
 ```
-**NOTICE**: In the dev-version, a faster version of `lmfit` (see [code](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)) is used. This version provides a fitting method, "fast_leastsq" in addition to other [fitting methods](https://lmfit.github.io/lmfit-py/fitting.html#choosing-different-fitting-methods) available in `lmfit(1.0.3)`. This method can speed up the fitting process by at least 30%. Check here for more details.
+**NOTICE**: In the dev-version, a faster version of `lmfit` ([light-lmfit-py](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)) is used. This version provides a fitting method, "fast_leastsq" in addition to other [fitting methods](https://lmfit.github.io/lmfit-py/fitting.html#choosing-different-fitting-methods) available in `lmfit(1.0.3)`. This method can be 2x faster than `leastsq`. Check [dev notes](https://github.com/ADACS-Australia/light-lmfit-py/tree/light) for more details.
 
 ## Getting Started
 ##### Import the package
@@ -55,14 +55,14 @@ Keywords `left` and `right` set the wavelength cuts around the given line on bot
 ```
 >>> model = dfisher_2022a.Lm_Const_1GaussModel
 ```
-A single Gaussian model is available within this package. Users can customize their own models following this note.
+A single Gaussian model is available within this package.
 
 #### Fit the cube
 ```
 >>> cfl = dfisher_2022a.CubeFitterLM(data=p.data, weight=p.weight, x=p.x, model=model, method='leastsq') # accept lmfit.Model.fit kwargs
 >>> cfl.fit_cube()
 ```
-Additional keyword arguments from [lmfit.Model.fit](https://lmfit.github.io/lmfit-py/model.html#model-class-methods) can be passed to the class object as well.
+Additional keyword arguments for [lmfit.Model.fit](https://lmfit.github.io/lmfit-py/model.html#model-class-methods) can be passed to the class object as well.
 
 #### Save output
 ```
@@ -89,6 +89,7 @@ where `result.h5` stores the fitting result, and `fitdata/` contains processed d
    ['/Halpha_Const_1GaussModel']
    >>> df = store.get("Halpha_Const_1GaussModel")
    ```
+
 #### Check available lines
 ```
 >>> dfisher_2022a.EmissionLines
@@ -114,3 +115,6 @@ In the wrapper function:
 ```
 >>> fit_lm(cubefile="single_gaussian_muse_size.fits", line="Halpha", model=model, z=0.009, left=20, right=20, snr_threshold=5., method="fast_leastsq", fast=True)
 ```
+
+## Create custom model
+Users can create their own models following the descriptions provided by [lmfit](https://lmfit.github.io/lmfit-py/model.html). To use `fast_leastsq` method in the dev version, `eval_fast` needs to be written as a method of the model. See dev notes of [light-lmfit-py](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)  for more details.
