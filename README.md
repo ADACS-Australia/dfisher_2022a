@@ -118,3 +118,6 @@ In the wrapper function:
 
 ## Create custom model
 Users can create their own models following the descriptions provided by [lmfit](https://lmfit.github.io/lmfit-py/model.html). To use `fast_leastsq` method in the dev version, `eval_fast` needs to be written as a method of the model. See dev notes of [light-lmfit-py](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)  for more details.
+
+## Special notes for using OzSTAR
+The default number of worker processes used in the parallel fitting is `os.cpu_count()`. In OzSTAR, it's the total number of cores in one node, which is 36. It can result in runtime error if you also setup `cpus-per-task`, e.g. `cpus-per-task=4` in the `sinteractive` mode or job submission scripts. In this case, please always specify the value of `nprocess` when calling `fit_lm` function or instantiating `CubeFitterLM` class.
