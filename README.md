@@ -18,7 +18,7 @@ $ pip install dfisher_2022a
 ```
 $ pip git+https://github.com/ADACS-Australia/dfisher_2022a.git#egg=dfisher_2022a
 ```
-**NOTICE**: In the dev-version, a light version of `lmfit` (see [code](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)) is used. This version provides a fitting method, "fast_leastsq" in addition to other [fitting methods](https://lmfit.github.io/lmfit-py/fitting.html#choosing-different-fitting-methods) available in `lmfit(1.0.3)`. This method can speed up the fitting process by at least 30%. Check here for more details.
+**NOTICE**: In the dev-version, a faster version of `lmfit` (see [code](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)) is used. This version provides a fitting method, "fast_leastsq" in addition to other [fitting methods](https://lmfit.github.io/lmfit-py/fitting.html#choosing-different-fitting-methods) available in `lmfit(1.0.3)`. This method can speed up the fitting process by at least 30%. Check here for more details.
 
 ## Getting Started
 ##### Import the package
@@ -103,4 +103,14 @@ A wrapper function encapsulating steps 1-6 is available:
 >>> from dfisher_2022a import fit_lm
 >>> model = dfisher_2022a.Lm_Const_1GaussModel
 >>> fit_lm(cubefile="single_gaussian_muse_size.fits", line="Halpha", model=model, z=0.009, left=20, right=20, snr_threshold=5.)
+```
+#### Use the faster version of lmfit
+If dev-version of this package is installed, which uses a faster version of `lmfit` as dependency, a faster fitting method is also available, by using `method="fast_leastsq"`and adding an argument `fast=True`
+```
+>>> cfl = dfisher_2022a.CubeFitterLM(data=p.data, weight=p.weight, x=p.x, model=model, method='fast_leastsq', fast=True) # accept lmfit.Model.fit kwargs
+>>> cfl.fit_cube()
+```
+In the wrapper function:
+```
+>>> fit_lm(cubefile="single_gaussian_muse_size.fits", line="Halpha", model=model, z=0.009, left=20, right=20, snr_threshold=5., method="fast_leastsq", fast=True)
 ```

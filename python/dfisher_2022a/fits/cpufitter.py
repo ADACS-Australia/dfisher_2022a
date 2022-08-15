@@ -162,7 +162,19 @@ class CubeFitterLM(CubeFitter):
         self.result = result
 
     def _read_fit_result(self, res):
-        """res: ModelResult; read according to result columns"""
+        """
+        Read fitting result from lmfit.
+
+        Parameters
+        ----------
+        res : lmfit.ModelResult
+            
+
+        Returns
+        -------
+        list
+            
+        """
         vals = []
         for name in self._lmfit_result_default:
             val = getattr(res, name)
@@ -184,8 +196,7 @@ class CubeFitterLM(CubeFitter):
             sp_x = x[inx]
             sp_weight = None
             if weight is not None:
-                sp_sweight = weight[pix_id][inx]
-    
+                sp_sweight = weight[pix_id][inx]            
             # start fitting    
             m = self.model()
             params = m.guess(sp, sp_x)
@@ -252,6 +263,8 @@ class CubeFitterLM(CubeFitter):
             logger.info("Finish pooling.")
 
         self.result[:] = sr[:]
+
+        return self.result
             
     def fit_serial(self):
         """"Fit data cube serially"""
@@ -279,6 +292,11 @@ class CubeFitterLM(CubeFitter):
                 res = m.fit(sp, params, x=self.x, weights=sp_weight, method=self.fit_method, **self.opts)
                 out = self._read_fit_result(res)
                 self.result[i,2:] = out
+
+            # display fitting process
+            logger.info(f"serial fitting -- pixel: {i}")
+        
+        return self.result
 
 class ResultLM():
     _cube_attr = ["z", "line", "snr_threshold", "snrmap"]
