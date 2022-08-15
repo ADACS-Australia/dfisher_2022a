@@ -6,7 +6,7 @@ __all__ = ["Line"]
 @dataclass(frozen=True)
 class Line():
     '''
-    object to store line information
+    Object to store line information: name, wavelength.
     '''
     name: str
     @property

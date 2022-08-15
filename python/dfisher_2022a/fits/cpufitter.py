@@ -72,11 +72,11 @@ class CubeFitterLM(CubeFitter):
             cube data weight; this array should be 3-d, and has the same ordering of axes as data.
         x : numpy.array or list
             cube wavelength
-        model : lmfit.CompositeModel
+        model : lmfit.Model or lmfit.CompositeModel
         nprocess : int, optional
-            the number of worker processes used in parallel fitting, by default os.cpu_count()
+            number of worker processes used in parallel fitting, by default "os.cpu_count()"
         method : str, optional
-            specifies the fitting method available in lmfit, by default 'leastsq'
+            fitting method available in lmfit, by default 'leastsq'
         kwargs : optional
             other keyword arguments passed from lmfit.Model.fit
 
@@ -173,7 +173,7 @@ class CubeFitterLM(CubeFitter):
         Returns
         -------
         list
-            
+            value of parameters specified in self._lmfit_result_default        
         """
         vals = []
         for name in self._lmfit_result_default:
@@ -189,7 +189,8 @@ class CubeFitterLM(CubeFitter):
         
     def _fit_single_spaxel(self, data: np.ndarray, weight: np.ndarray or None, 
                             mask: np.ndarray, x: np.ndarray, 
-                            resm: shared_memory.SharedMemory, pix_id: int):        
+                            resm: shared_memory.SharedMemory, pix_id: int):  
+        """Target function for parallel cube fitting (fit_cube)."""      
         if not mask[pix_id].all():
             inx = np.where(~mask[pix_id])
             sp = data[pix_id][inx]
@@ -214,21 +215,23 @@ class CubeFitterLM(CubeFitter):
     def _set_default_chunksize(self, ncpu):
         return math.ceil(self.data.shape[0]/ncpu)
 
-    def fit_cube(self, nprocess=None, chunksize=None):
+    def fit_cube(self, nprocess=None):
         """
-        _summary_
+        Fit cube parallelly.
 
         Parameters
         ----------
-        nprocess : _type_, optional
-            _description_, by default None
-        chunksize : _type_, optional
-            _description_, by default None
+        nprocess : int, optional
+            number of worker processes used in parallel fitting, by default None. If None, nprocess set at class instance will be used
+        Returns
+        -------
+        result : numpy.ndarray
         """
         if nprocess is None:
             nprocess = self.nprocess
-        if chunksize is None:
-            chunksize = self._set_default_chunksize(nprocess)
+        
+        # get value of chunksize (key in pool.map)
+        chunksize = self._set_default_chunksize(nprocess)
 
         # initialize result
         self.result[:,2:] = np.nan
@@ -267,7 +270,7 @@ class CubeFitterLM(CubeFitter):
         return self.result
             
     def fit_serial(self):
-        """"Fit data cube serially"""
+        """"Fit cube serially."""
         # initialize result 
         self.result[:, 2:] = np.nan
 
@@ -299,23 +302,40 @@ class CubeFitterLM(CubeFitter):
         return self.result
 
 class ResultLM():
-    _cube_attr = ["z", "line", "snr_threshold", "snrmap"]
-    _fit_attr = ["fit_method", "result", "result_column"]
-    _default = ["success", "aic", "bic", "chisqr", "redchi"]
+    """
+    Result container. It can be used to collect key information (by reading attributes) from objects that generated during the fitting process.
+
+    Parameters
+    ----------
+    path : str, optional
+        directory to hosts "out", by default "./"
+    """
+    # _cube_attr = ["z", "line", "snr_threshold", "snrmap"]
+    # _fit_attr = ["fit_method", "result", "result_column"]
+    # _default = ["success", "aic", "bic", "chisqr", "redchi"]
 
     _save = ["data", "weight", "x"]
 
     def __init__(self, path="./"):
+        """
+        Result container. It can be used to collect key information (by reading attributes) from objects that generated during the fitting process.
+
+        Parameters
+        ----------
+        path : str, optional
+            directory to hosts "out", by default "./"
+        """
         self.path = path
         self._create_output_dir()
 
     def _create_output_dir(self):
-        """create the output directory; the default dir is the current dir"""
+        """Create an 'out' folder in the directory specified by path keyword."""
         os.makedirs(self.path + "/out", exist_ok=True)
         logger.debug("Create out directory.")
 
     @property
     def _flatsnr(self):
+        """Fill masked snr by -999."""
         return self.snr.filled(-999).flatten()
 
     def _create_result_df(self):
@@ -331,6 +351,9 @@ class ResultLM():
         store.put(rname, df)
         store.close()
 
+    # TODO: both ProcessedCube and CubeFitterLM have self._save attributes; 
+    # need to find a way to separate them; or move reshape functionality 
+    # from CubeFitterLM to ProcessedCube
     def _save_fit_input_data(self):
         data_dir = self.path + "/out/fitdata/"
         os.makedirs(data_dir, exist_ok=True)
@@ -344,9 +367,11 @@ class ResultLM():
                 np.save(data_name, val)
 
     def _write_fit_summary(self):
+        """Write out fit summary, which can also be used as config file."""
         pass
 
     def get_output(self, cls):
+        """Get relevant attributes from other class object."""
         get_custom_attr(self, cls)
 
     def save(self, save_fitdata=True):
