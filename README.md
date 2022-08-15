@@ -16,7 +16,7 @@ $ pip install dfisher_2022a
 **Common troubleshooting**: If installation fails, try to upgrade `pip` by running `pip install --upgrade pip` first.
 #### Latest dev-version on GitHub
 ```
-$ pip git+https://github.com/ADACS-Australia/dfisher_2022a.git#egg=dfisher_2022a
+$ pip install git+https://github.com/ADACS-Australia/dfisher_2022a.git#egg=dfisher_2022a
 ```
 **NOTICE**: In the dev-version, a faster version of `lmfit` ([light-lmfit-py](https://github.com/ADACS-Australia/light-lmfit-py/tree/light)) is used. This version provides a fitting method, "fast_leastsq" in addition to other [fitting methods](https://lmfit.github.io/lmfit-py/fitting.html#choosing-different-fitting-methods) available in `lmfit(1.0.3)`. This method can be 2x faster than `leastsq`. Check [dev notes](https://github.com/ADACS-Australia/light-lmfit-py/tree/light) for more details.
 
