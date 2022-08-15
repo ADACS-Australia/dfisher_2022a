@@ -50,13 +50,13 @@ def test_paralle_vs_serial(input_data) -> None:
 
 ########
 # comment the following function out when publishing to pypi
-# def test_fast_leastsq(input_data) -> None:
-#     """Test whether fast leastsq and leastsq generate the same results"""
-#     cfl1 = CubeFitterLM(input_data["data"], input_data["weight"], input_data["x"], MODEL, method="leastsq")
-#     cfl2 = CubeFitterLM(input_data["data"], input_data["weight"], input_data["x"], MODEL, method="fast_leastsq", fast=True)
-#     res1 = cfl2.fit_serial()
-#     res2 = cfl2.fit_serial()
-#     assert_allclose(res1, res2)
+def test_fast_leastsq(input_data) -> None:
+    """Test whether fast leastsq and leastsq generate the same results"""
+    cfl1 = CubeFitterLM(input_data["data"], input_data["weight"], input_data["x"], MODEL, method="leastsq")
+    cfl2 = CubeFitterLM(input_data["data"], input_data["weight"], input_data["x"], MODEL, method="fast_leastsq", fast=True)
+    res1 = cfl2.fit_serial()
+    res2 = cfl2.fit_serial()
+    assert_allclose(res1, res2)
 
 
 
