@@ -10,7 +10,7 @@ build:
       # Install poetry; see https://python-poetry.org/docs/
       - curl -sSL https://install.python-poetry.org | python3 -
       # Tell poetry to not use a virtual environment
-      - $HOME/.local/bin/poetry config virtualenvs.create false
+      # - $HOME/.local/bin/poetry config virtualenvs.create false
       # Install project's dependencies
       - $HOME/.local/bin/poetry install -E docs
 
