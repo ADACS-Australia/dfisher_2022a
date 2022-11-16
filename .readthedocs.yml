@@ -10,9 +10,8 @@ build:
       - asdf install poetry latest
       - asdf global poetry latest
       - poetry config virtualenvs.create false
-    post_create_environment:
-      - poetry install --no-dev -E docs
     post_install:
+      - poetry install --only main,docs
       - make apidoc
 sphinx:
   configuration: docs/conf.py
