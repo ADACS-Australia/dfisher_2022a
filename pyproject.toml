@@ -19,8 +19,6 @@ documentation = "https://dfisher-2022a.readthedocs.io/en/latest/"
 
 [tool.poetry.dependencies]
 python = " >=3.8,<3.10"
-Sphinx = { version = "4.2.0", optional = true }
-sphinx-rtd-theme = { version = "1.0.0", optional = true }
 numpy = "^1.19"
 pandas = "^1.4.2"
 mpdaf = "^3.5"
@@ -32,6 +30,10 @@ tqdm = "^4.64.0"
 [tool.poetry.dev-dependencies]
 pytest = "^7.0"
 pytest-cov = "^3.0.0"
+Sphinx = { version = "4.2.0", optional = true }
+sphinx-rtd-theme = { version = "1.0.0", optional = true }
+myst-parser = { version = "^0.18.0", optional = true }
+sphinx-rtd-theme = { version = "^1.0.0", optional = true }
 viztracer = "^0.15.2"
 py-spy = "^0.3.12"
 line-profiler = "^3.5.1"
@@ -43,12 +45,9 @@ graphviz = "^0.20"
 gprof2dot = "^2021.2.21"
 ipykernel = "^6.13.0"
 jupyter-contrib-nbextensions = "^0.5.1"
-myst-parser = "^0.18.0"
-sphinx-rtd-theme = "^1.0.0"
-
 
 [tool.poetry.extras]
-docs = ["Sphinx", "sphinx-rtd-theme"]
+docs = ["Sphinx", "sphinx-rtd-theme", "myst-parser"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
